@@ -92,25 +92,16 @@ button {
   letter-spacing: -0.3px;
 }
 
-.brand-food {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #ffa502;
-}
-
-.brand-B {
-  font-size: 1.65rem;
-  font-weight: 900;
+.brand-bula {
+  font-size: 1.35rem;
+  font-weight: 800;
   color: #ffffff;
-  margin: 0 -0.5px;
-  text-shadow: 0 0 14px rgba(255, 255, 255, 0.8);
-  transform: translateY(1px);
 }
 
-.brand-ot {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #ffa502;
+.brand-food {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--primary);
 }
 
 .location-picker {
