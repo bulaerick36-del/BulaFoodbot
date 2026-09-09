@@ -26,7 +26,7 @@ window.BulaApp = (function() {
     // Initial cart render
     BulaUI.updateCartUI(BulaCart.getSummary());
 
-    // Default: Open Restaurante Mi Rey
+    // Default: Open Restaurante Mi Rey para navegación de cliente
     openRestaurant("mi-rey");
 
     // Setup Search listener
@@ -120,13 +120,15 @@ window.BulaApp = (function() {
     const restaurant = BulaData.getRestaurant(restId);
     if (!restaurant) return;
 
+    // Verificar si el dueño ya se ha autenticado manualmente en esta sesión
     if (!isAuthenticated(restId)) {
       openLoginModal(restaurant);
       return;
     }
 
+    // Si ya inició sesión manualmente, abrir el panel de configuración
     document.getElementById('admin-rest-id').value = restaurant.id;
-    document.getElementById('admin-username').value = restaurant.username || `${restaurant.id}@bulafood.com`;
+    document.getElementById('admin-username').value = restaurant.username || restaurant.alias || `${restaurant.id}_admin`;
     document.getElementById('admin-password').value = restaurant.password || `${restaurant.id}123`;
     document.getElementById('admin-name').value = restaurant.name;
     document.getElementById('admin-phone').value = restaurant.phone || '';
@@ -164,7 +166,7 @@ window.BulaApp = (function() {
 
     const demoHint = document.getElementById('login-demo-hint');
     if (demoHint) {
-      demoHint.innerHTML = `<i class="fas fa-key"></i> Credenciales Demo (${rest.name}):<br/>Usuario: <b>${rest.username || rest.id + '@bulafood.com'}</b> | Clave: <b>${rest.password || rest.id + '123'}</b>`;
+      demoHint.innerHTML = `<i class="fas fa-key"></i> Credenciales Demo (${rest.name}):<br/>Usuario/Email: <b>${rest.email || rest.username || rest.id + '@bulafood.com'}</b> | Clave: <b>${rest.password || rest.id + '123'}</b>`;
     }
 
     const modal = document.getElementById('login-modal');
@@ -204,7 +206,7 @@ window.BulaApp = (function() {
     }
   }
 
-  // --- Registro de Nuevo Restaurante (Crear tu Vitrina) ---
+  // --- Registro de Nuevo Restaurante con Email y Alias ---
   function openRegisterModal() {
     const modal = document.getElementById('register-modal');
     const overlay = document.getElementById('register-modal-overlay');
@@ -228,12 +230,13 @@ window.BulaApp = (function() {
 
     const name = document.getElementById('reg-name').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
-    const username = document.getElementById('reg-username').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const alias = document.getElementById('reg-alias').value.trim();
     const password = document.getElementById('reg-password').value.trim();
     const address = document.getElementById('reg-address').value.trim();
     const deliveryFee = document.getElementById('reg-delivery-fee').value;
 
-    if (!name || !phone || !username || !password) {
+    if (!name || !phone || !email || !alias || !password) {
       alert("Por favor completa todos los campos obligatorios (*).");
       return;
     }
@@ -241,7 +244,9 @@ window.BulaApp = (function() {
     const newRest = BulaData.registerRestaurant({
       name,
       phone,
-      username,
+      email,
+      alias,
+      username: alias,
       password,
       address,
       deliveryFee

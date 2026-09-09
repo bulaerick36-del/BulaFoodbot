@@ -19,7 +19,8 @@ window.BulaData = (function() {
       name: "Restaurante Mi Rey",
       status: "Abierto",
       phone: "+573001234567",
-      username: "mirey@bulafood.com",
+      username: "mirey_admin",
+      alias: "mirey_admin",
       email: "mirey@bulafood.com",
       password: "mirey123",
       rating: "4.9",
@@ -107,7 +108,8 @@ window.BulaData = (function() {
       name: "Sabor Costeño Express",
       status: "Abierto",
       phone: "+573019876543",
-      username: "sabor@bulafood.com",
+      username: "sabor_express",
+      alias: "sabor_express",
       email: "sabor@bulafood.com",
       password: "sabor123",
       rating: "4.7",
@@ -137,7 +139,8 @@ window.BulaData = (function() {
       name: "Asados El Rancho",
       status: "Cerrado",
       phone: "+573025554433",
-      username: "rancho@bulafood.com",
+      username: "rancho_asados",
+      alias: "rancho_asados",
       email: "rancho@bulafood.com",
       password: "rancho123",
       rating: "4.8",
@@ -162,7 +165,8 @@ window.BulaData = (function() {
       if (saved) {
         restaurants = JSON.parse(saved);
         restaurants.forEach(r => {
-          if (!r.username) r.username = `${r.id}@bulafood.com`;
+          if (!r.alias) r.alias = r.username || r.id;
+          if (!r.username) r.username = r.alias || r.id;
           if (!r.email) r.email = `${r.id}@bulafood.com`;
           if (!r.password) r.password = `${r.id}123`;
         });
@@ -220,12 +224,13 @@ window.BulaData = (function() {
 
     const matchedRest = restaurants.find(r => 
       ((r.username && r.username.toLowerCase().trim() === cleanUser) ||
+       (r.alias && r.alias.toLowerCase().trim() === cleanUser) ||
        (r.email && r.email.toLowerCase().trim() === cleanUser) ||
        (r.id && r.id.toLowerCase() === cleanUser))
     ) || getRestaurant(id);
 
     if (matchedRest) {
-      const restUser = (matchedRest.username || matchedRest.email || `${matchedRest.id}@bulafood.com`).toLowerCase().trim();
+      const restUser = (matchedRest.username || matchedRest.alias || matchedRest.email || `${matchedRest.id}@bulafood.com`).toLowerCase().trim();
       const restPass = (matchedRest.password || `${matchedRest.id}123`).trim();
 
       if ((cleanUser === restUser || cleanUser === (matchedRest.email || '').toLowerCase().trim()) && cleanPass === restPass) {
@@ -238,19 +243,23 @@ window.BulaData = (function() {
     return { success: false, message: "Usuario o contraseña de administración incorrectos." };
   }
 
-  // 3. Registro de Nuevo Restaurante (Crear tu Vitrina)
+  // 3. Registro de Nuevo Restaurante (Crear tu Vitrina con Alias y Email)
   function registerRestaurant(newRestData) {
     const name = newRestData.name.trim();
     const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const id = cleanSlug || `rest-${Date.now()}`;
     
+    const email = (newRestData.email || newRestData.username || '').trim();
+    const alias = (newRestData.alias || newRestData.username || cleanSlug).trim();
+
     const newRestaurant = {
       id: id,
       name: name,
       status: "Abierto",
       phone: newRestData.phone.trim(),
-      username: newRestData.username.trim(),
-      email: newRestData.username.trim(),
+      email: email,
+      username: alias,
+      alias: alias,
       password: newRestData.password.trim(),
       rating: "5.0",
       reviewsCount: 1,
@@ -287,8 +296,8 @@ window.BulaData = (function() {
           id: newRestaurant.id,
           name: newRestaurant.name,
           phone: newRestaurant.phone,
-          username: newRestaurant.username,
           email: newRestaurant.email,
+          username: newRestaurant.username,
           password: newRestaurant.password,
           status: newRestaurant.status,
           deliveryFee: newRestaurant.deliveryFee,
@@ -310,7 +319,10 @@ window.BulaData = (function() {
 
     if (updatedData.username) {
       rest.username = updatedData.username.trim();
-      rest.email = updatedData.username.trim();
+      rest.alias = updatedData.username.trim();
+    }
+    if (updatedData.email) {
+      rest.email = updatedData.email.trim();
     }
     if (updatedData.password) rest.password = updatedData.password.trim();
     if (updatedData.name) rest.name = updatedData.name.trim();
