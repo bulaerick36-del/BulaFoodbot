@@ -1,0 +1,45 @@
+/* BulaFoodboT - Design System & Variables */
+:root {
+  /* Colors */
+  --bg-dark: #0b0c10;
+  --bg-card: #14161f;
+  --bg-card-hover: #1c1f2c;
+  --bg-glass: rgba(20, 22, 31, 0.85);
+  --bg-glass-card: rgba(255, 255, 255, 0.03);
+  
+  --primary: #ff4757;
+  --primary-hover: #ff6b81;
+  --primary-glow: rgba(255, 71, 87, 0.35);
+  
+  --accent: #ffa502;
+  --accent-glow: rgba(255, 165, 2, 0.3);
+  
+  --status-open: #2ed573;
+  --status-open-bg: rgba(46, 213, 115, 0.15);
+  --status-closed: #ff4757;
+  --status-closed-bg: rgba(255, 71, 87, 0.15);
+  
+  --text-main: #f1f2f6;
+  --text-muted: #a4b0be;
+  --text-dim: #747d8c;
+  
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.15);
+  
+  /* Layout & Spacing */
+  --max-width: 1200px;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px var(--primary-glow);
+  
+  /* Transitions */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-bounce: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}

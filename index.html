@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>BulaFoodboT - Vitrinas Digitales & Agente de Restaurantes</title>
+  <meta name="description" content="Plataforma de Vitrinas Digitales e Pedidos Inteligentes para Restaurantes Locales." />
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+</head>
+<body>
+
+  <!-- App Header & Navigation -->
+  <header class="app-header">
+    <div class="container header-content">
+      <div class="brand-logo" onclick="BulaApp.showHomeView()">
+        <div class="brand-icon">
+          <i class="fas fa-utensils"></i>
+        </div>
+        <div>Bula<span class="highlight">FoodboT</span></div>
+      </div>
+
+      <div class="location-picker">
+        <i class="fas fa-map-marker-alt"></i>
+        <span>Entregar en: <b>Centro, Montería</b></span>
+      </div>
+
+      <div class="header-actions">
+        <button class="cart-btn" onclick="BulaApp.openAdminModal()" title="Acceso / Configuración de Local" style="color: #25D366; border-color: rgba(37,211,102,0.3);">
+          <i class="fas fa-store"></i>
+        </button>
+        <button class="cart-btn" id="header-cart-btn" onclick="BulaApp.toggleCartDrawer(true)" aria-label="Ver Carrito">
+          <i class="fas fa-shopping-bag"></i>
+          <span class="cart-badge" id="header-cart-badge">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="container" style="margin-top: 10px;">
+    
+    <!-- Home View: Catalog of Restaurants -->
+    <div id="home-view" class="view-section">
+      <section class="hero-banner">
+        <div class="hero-content">
+          <h1>¡Tu gastronomía local favorita a un clic! 🍔🔥</h1>
+          <p>Explora vitrinas digitales, menús interactivos y pide directo al WhatsApp del negocio.</p>
+          <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search-input" placeholder="Buscar restaurantes, WhatsApp, platos..." />
+          </div>
+        </div>
+      </section>
+
+      <div class="section-header">
+        <h2 class="section-title">Restaurantes Afiliados</h2>
+      </div>
+
+      <div id="restaurants-container" class="restaurants-grid">
+        <!-- Rendered by js/ui.js -->
+      </div>
+    </div>
+
+    <!-- Restaurant Detail View: Vitrina Digital -->
+    <div id="restaurant-view" class="view-section active">
+      <!-- Showcase Banner & Header -->
+      <div id="restaurant-showcase">
+        <!-- Rendered by js/ui.js -->
+      </div>
+
+      <!-- Sticky Category Scroll Navigation -->
+      <div class="category-nav-wrapper">
+        <div id="categories-scroll" class="category-scroll">
+          <!-- Rendered by js/ui.js -->
+        </div>
+      </div>
+
+      <!-- Dishes Grid -->
+      <div class="section-header">
+        <h3 class="section-title" id="category-section-title">Menú del Restaurante</h3>
+      </div>
+      <div id="dishes-container" class="dishes-grid">
+        <!-- Rendered by js/ui.js -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Floating Mobile Bottom Cart Bar -->
+  <div id="floating-cart-bar" class="floating-cart-bar" style="display: none;" onclick="BulaApp.toggleCartDrawer(true)">
+    <div class="floating-cart-info">
+      <span class="floating-cart-count" id="floating-cart-count">0 items</span>
+      <span class="floating-cart-total" id="floating-cart-total">$0</span>
+    </div>
+    <div class="floating-cart-action">
+      <span>Ver Pedido</span>
+      <i class="fas fa-chevron-right"></i>
+    </div>
+  </div>
+
+  <!-- Cart Slide-out Drawer Overlay -->
+  <div id="cart-drawer-overlay" class="cart-drawer-overlay" onclick="BulaApp.toggleCartDrawer(false)"></div>
+
+  <!-- Slide-out Cart Drawer -->
+  <div id="cart-drawer" class="cart-drawer">
+    <div class="drawer-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-shopping-basket" style="color: var(--primary); font-size: 1.3rem;"></i>
+        <h3>Tu Pedido</h3>
+      </div>
+      <button class="close-drawer-btn" onclick="BulaApp.toggleCartDrawer(false)">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="drawer-body">
+      <div id="cart-destination-phone"></div>
+      <div id="cart-drawer-body">
+        <!-- Items rendered dynamically -->
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">
+          <i class="fas fa-map-marker-alt"></i> Dirección de entrega:
+        </label>
+        <input type="text" id="delivery-address-input" value="Calle 15 # 4-22, Centro, Montería" style="width: 100%; padding: 10px 14px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.9rem;" />
+      </div>
+
+      <div style="margin-bottom: 14px;">
+        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">
+          <i class="fas fa-sticky-note"></i> Notas del pedido (Opcional):
+        </label>
+        <input type="text" id="order-notes-input" placeholder="Ej: Suero costeño extra, picante aparte..." style="width: 100%; padding: 10px 14px; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.9rem;" />
+      </div>
+
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span id="cart-subtotal">$0</span>
+      </div>
+      <div class="summary-row">
+        <span>Costo Domicilio</span>
+        <span id="cart-delivery">$0</span>
+      </div>
+      <div class="summary-row total">
+        <span>Total a Pagar</span>
+        <span id="cart-total">$0</span>
+      </div>
+
+      <button class="whatsapp-checkout-btn" onclick="BulaApp.sendWhatsAppOrder()">
+        <i class="fab fa-whatsapp" style="font-size: 1.3rem;"></i> Confirmar Pedido por WhatsApp
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal 1: Autenticación / Login de Dueño de Restaurante -->
+  <div id="login-modal-overlay" class="modal-overlay" onclick="BulaApp.closeLoginModal()"></div>
+  <div id="login-modal" class="modal-card">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-user-lock" style="color: var(--primary); font-size: 1.4rem;"></i>
+        <div>
+          <h3 style="font-size: 1.15rem;">Acceso Propietario</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted);" id="login-rest-name">Restaurante Mi Rey</p>
+        </div>
+      </div>
+      <button class="close-drawer-btn" onclick="BulaApp.closeLoginModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form onsubmit="BulaApp.handleAdminLogin(event)">
+      <input type="hidden" id="login-rest-id" value="" />
+
+      <div class="form-group">
+        <label><i class="fas fa-user"></i> Usuario / Correo de Acceso</label>
+        <input type="text" id="login-username" placeholder="Ej. mirey@bulafood.com" required autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Contraseña de Acceso</label>
+        <div style="position: relative;">
+          <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" style="padding-right: 40px;" />
+          <button type="button" onclick="BulaApp.togglePasswordVisibility('login-password', 'login-pass-icon')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+            <i class="fas fa-eye" id="login-pass-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="login-demo-hint" style="background: rgba(255,165,2,0.1); border: 1px solid rgba(255,165,2,0.3); color: var(--accent); padding: 10px 12px; border-radius: var(--radius-md); font-size: 0.82rem; margin-bottom: 16px;">
+        <!-- Pista de credenciales demo -->
+      </div>
+
+      <div style="display: flex; gap: 10px;">
+        <button type="button" class="back-to-home-btn" style="position: static; flex: 1; justify-content: center;" onclick="BulaApp.closeLoginModal()">
+          Cancelar
+        </button>
+        <button type="submit" class="whatsapp-checkout-btn" style="flex: 2; padding: 10px; background: var(--primary);">
+          <i class="fas fa-sign-in-alt"></i> Ingresar al Panel
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal 2: Configuración del Negocio y Credenciales -->
+  <div id="admin-modal-overlay" class="modal-overlay" onclick="BulaApp.closeAdminModal()"></div>
+  <div id="admin-modal" class="modal-card">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <i class="fab fa-whatsapp" style="color: #25D366; font-size: 1.5rem;"></i>
+        <h3>Configuración del Negocio</h3>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <button type="button" onclick="BulaApp.logoutAdmin()" style="color: var(--primary); font-size: 0.82rem; font-weight: 700; background: rgba(255,71,87,0.15); padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(255,71,87,0.3);">
+          <i class="fas fa-sign-out-alt"></i> Salir
+        </button>
+        <button class="close-drawer-btn" onclick="BulaApp.closeAdminModal()">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    </div>
+
+    <form onsubmit="BulaApp.saveRestaurantProfile(event)">
+      <input type="hidden" id="admin-rest-id" value="" />
+
+      <!-- Sección 1: Credenciales de Seguridad -->
+      <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); padding: 14px; border-radius: var(--radius-md); margin-bottom: 16px;">
+        <h4 style="font-size: 0.92rem; font-weight: 700; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+          <i class="fas fa-shield-alt"></i> Credenciales de Acceso al Sistema
+        </h4>
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Usuario / Correo de Acceso (Obligatorio)</label>
+          <input type="text" id="admin-username" required placeholder="Ej. admin@mirey.com" />
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label><i class="fas fa-key"></i> Contraseña de Acceso (Obligatorio)</label>
+          <div style="position: relative;">
+            <input type="password" id="admin-password" required placeholder="••••••••" style="padding-right: 40px;" />
+            <button type="button" onclick="BulaApp.togglePasswordVisibility('admin-password', 'admin-pass-icon')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+              <i class="fas fa-eye" id="admin-pass-icon"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección 2: WhatsApp y Datos Comerciales -->
+      <div class="form-group">
+        <label><i class="fab fa-whatsapp" style="color: #25D366;"></i> Número WhatsApp Business para Pedidos (Obligatorio)</label>
+        <input type="text" id="admin-phone" placeholder="Ej. +573001234567" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-store"></i> Nombre del Restaurante / Negocio</label>
+        <input type="text" id="admin-name" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-toggle-on"></i> Estado del Local</label>
+        <select id="admin-status">
+          <option value="Abierto">Abierto (Aceptando Pedidos)</option>
+          <option value="Cerrado">Cerrado (Fuera de Horario)</option>
+        </select>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label><i class="fas fa-motorcycle"></i> Costo Domicilio (COP)</label>
+          <input type="number" id="admin-delivery-fee" min="0" step="500" required />
+        </div>
+        <div class="form-group">
+          <label><i class="far fa-clock"></i> Tiempo Entrega</label>
+          <input type="text" id="admin-delivery-time" placeholder="Ej. 25-35 min" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-map-marker-alt"></i> Dirección del Local</label>
+        <input type="text" id="admin-address" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-align-left"></i> Descripción / Eslogan</label>
+        <textarea id="admin-description" rows="2"></textarea>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="button" class="back-to-home-btn" style="position: static; flex: 1; justify-content: center; background: rgba(37,211,102,0.15); color: #25D366; border-color: rgba(37,211,102,0.3);" onclick="BulaApp.testWhatsAppConnection()">
+          <i class="fab fa-whatsapp"></i> Probar Conexión
+        </button>
+        <button type="submit" class="whatsapp-checkout-btn" style="flex: 2; padding: 10px;">
+          <i class="fas fa-save"></i> Guardar Credenciales y Perfil
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/cart.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
