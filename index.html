@@ -33,8 +33,11 @@
       </div>
 
       <div class="header-actions">
-        <button class="cart-btn" onclick="BulaApp.openAdminModal()" title="Acceso / Configuración de Local" style="color: #25D366; border-color: rgba(37,211,102,0.3);">
-          <i class="fas fa-store"></i>
+        <button class="nav-btn nav-btn-login" onclick="BulaApp.openAdminModal()" title="Iniciar Sesión de Propietario">
+          <i class="fas fa-sign-in-alt"></i> <span>Iniciar Sesión</span>
+        </button>
+        <button class="nav-btn nav-btn-create" onclick="BulaApp.openRegisterModal()" title="Crear tu Vitrina Digital">
+          <i class="fas fa-store"></i> <span>Crear tu Vitrina</span>
         </button>
         <button class="cart-btn" id="header-cart-btn" onclick="BulaApp.toggleCartDrawer(true)" aria-label="Ver Carrito">
           <i class="fas fa-shopping-bag"></i>
@@ -298,6 +301,70 @@
         </button>
         <button type="submit" class="whatsapp-checkout-btn" style="flex: 2; padding: 10px;">
           <i class="fas fa-save"></i> Guardar Credenciales y Perfil
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Modal 3: Registro de Nuevo Restaurante ("Crear tu Vitrina") -->
+  <div id="register-modal-overlay" class="modal-overlay" onclick="BulaApp.closeRegisterModal()"></div>
+  <div id="register-modal" class="modal-card">
+    <div class="modal-header">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <i class="fas fa-rocket" style="color: var(--primary); font-size: 1.5rem;"></i>
+        <div>
+          <h3 style="font-size: 1.2rem;">Crear tu Vitrina Digital</h3>
+          <p style="font-size: 0.8rem; color: var(--text-muted);">Registra tu restaurante y recibe pedidos directo en tu WhatsApp</p>
+        </div>
+      </div>
+      <button class="close-drawer-btn" onclick="BulaApp.closeRegisterModal()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <form onsubmit="BulaApp.handleRestaurantRegistration(event)">
+      <div class="form-group">
+        <label><i class="fas fa-store"></i> Nombre de tu Restaurante / Negocio (*)</label>
+        <input type="text" id="reg-name" placeholder="Ej. Asados del Sinú" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fab fa-whatsapp" style="color: #25D366;"></i> WhatsApp Business para recibir Pedidos (*)</label>
+        <input type="text" id="reg-phone" placeholder="Ej. +573009998877" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-envelope"></i> Correo o Usuario de Acceso (*)</label>
+        <input type="email" id="reg-username" placeholder="Ej. contacto@asadosdelsinu.com" required />
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-lock"></i> Crea tu Contraseña de Acceso (*)</label>
+        <div style="position: relative;">
+          <input type="password" id="reg-password" placeholder="••••••••" required style="padding-right: 40px;" />
+          <button type="button" onclick="BulaApp.togglePasswordVisibility('reg-password', 'reg-pass-icon')" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted);">
+            <i class="fas fa-eye" id="reg-pass-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label><i class="fas fa-map-marker-alt"></i> Dirección / Ciudad</label>
+          <input type="text" id="reg-address" placeholder="Ej. Montería, Centro" />
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-motorcycle"></i> Domicilio ($ COP)</label>
+          <input type="number" id="reg-delivery-fee" value="3000" min="0" step="500" />
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button type="button" class="back-to-home-btn" style="position: static; flex: 1; justify-content: center;" onclick="BulaApp.closeRegisterModal()">
+          Cancelar
+        </button>
+        <button type="submit" class="whatsapp-checkout-btn" style="flex: 2; padding: 12px; background: linear-gradient(135deg, var(--primary), var(--accent));">
+          <i class="fas fa-magic"></i> ¡Crear Mi Vitrina Gratis!
         </button>
       </div>
     </form>

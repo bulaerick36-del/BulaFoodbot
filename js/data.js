@@ -188,7 +188,7 @@ window.BulaData = (function() {
     return restaurants.find(r => r.id === id);
   }
 
-  // 2. Función de Autenticación Asíncrona Robusta (Supabase + Respaldo Local Flexible)
+  // 2. Autenticación Asíncrona (Supabase + Respaldo Local)
   async function authenticateRestaurant(id, inputUser, inputPassword) {
     const cleanUser = (inputUser || '').toLowerCase().trim();
     const cleanPass = (inputPassword || '').trim();
@@ -197,7 +197,6 @@ window.BulaData = (function() {
       return { success: false, message: "Por favor ingresa usuario y contraseña." };
     }
 
-    // A) Intentar consulta a Supabase si el cliente está disponible
     if (supabaseClient) {
       try {
         console.log("Consultando Supabase para validar credenciales de:", cleanUser);
@@ -215,11 +214,10 @@ window.BulaData = (function() {
           return { success: true, restaurant: data };
         }
       } catch (err) {
-        console.warn("Excepción consultando Supabase, cambiando a verificación local:", err);
+        console.warn("Excepción consultando Supabase:", err);
       }
     }
 
-    // B) Respaldo local flexible: Buscar coincidencia en todos los restaurantes
     const matchedRest = restaurants.find(r => 
       ((r.username && r.username.toLowerCase().trim() === cleanUser) ||
        (r.email && r.email.toLowerCase().trim() === cleanUser) ||
@@ -238,6 +236,72 @@ window.BulaData = (function() {
     }
 
     return { success: false, message: "Usuario o contraseña de administración incorrectos." };
+  }
+
+  // 3. Registro de Nuevo Restaurante (Crear tu Vitrina)
+  function registerRestaurant(newRestData) {
+    const name = newRestData.name.trim();
+    const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const id = cleanSlug || `rest-${Date.now()}`;
+    
+    const newRestaurant = {
+      id: id,
+      name: name,
+      status: "Abierto",
+      phone: newRestData.phone.trim(),
+      username: newRestData.username.trim(),
+      email: newRestData.username.trim(),
+      password: newRestData.password.trim(),
+      rating: "5.0",
+      reviewsCount: 1,
+      deliveryFee: Number(newRestData.deliveryFee) || 3000,
+      deliveryTime: "25-35 min",
+      minOrder: 10000,
+      address: newRestData.address ? newRestData.address.trim() : "Montería",
+      coverImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+      logo: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=200&q=80",
+      tags: ["Nuevo Local", "Gastronomía Local"],
+      description: "¡Bienvenido a nuestro menú digital en BulaFoodboT!",
+      categories: ["Popular", "Platos Fuertes", "Bebidas"],
+      menu: [
+        {
+          id: `${id}-1`,
+          name: "Plato Especial de la Casa",
+          category: "Platos Fuertes",
+          price: 22000,
+          description: "Nuestra especialidad insigne recién preparada.",
+          image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80",
+          popular: true,
+          badge: "Nuevo"
+        }
+      ]
+    };
+
+    restaurants.push(newRestaurant);
+    saveData();
+
+    if (supabaseClient) {
+      supabaseClient
+        .from('restaurants')
+        .upsert([{
+          id: newRestaurant.id,
+          name: newRestaurant.name,
+          phone: newRestaurant.phone,
+          username: newRestaurant.username,
+          email: newRestaurant.email,
+          password: newRestaurant.password,
+          status: newRestaurant.status,
+          deliveryFee: newRestaurant.deliveryFee,
+          address: newRestaurant.address
+        }])
+        .then(({ error }) => {
+          if (error) console.warn("Supabase register error:", error.message);
+          else console.log("Nuevo restaurante registrado en Supabase!");
+        });
+    }
+
+    window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
+    return newRestaurant;
   }
 
   function updateRestaurantProfile(id, updatedData) {
@@ -259,7 +323,6 @@ window.BulaData = (function() {
 
     saveData();
 
-    // Sincronización asíncrona con Supabase si está conectado
     if (supabaseClient) {
       supabaseClient
         .from('restaurants')
@@ -293,6 +356,7 @@ window.BulaData = (function() {
     get supabaseClient() { return supabaseClient; },
     getRestaurant,
     authenticateRestaurant,
+    registerRestaurant,
     updateRestaurantProfile
   };
 })();

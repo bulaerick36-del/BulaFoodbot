@@ -101,7 +101,7 @@ window.BulaApp = (function() {
     }
   }
 
-  // --- Autenticación y Modal de Login del Administrador ---
+  // --- Autenticación y Sesiones ---
   function isAuthenticated(restaurantId) {
     const sessionToken = sessionStorage.getItem(`bula_auth_${restaurantId}`);
     return sessionToken === 'true';
@@ -120,16 +120,14 @@ window.BulaApp = (function() {
     const restaurant = BulaData.getRestaurant(restId);
     if (!restaurant) return;
 
-    // Verificar si el dueño ya se ha autenticado en esta sesión
     if (!isAuthenticated(restId)) {
       openLoginModal(restaurant);
       return;
     }
 
-    // Si ya está autenticado, abrir directamente la configuración del local
     document.getElementById('admin-rest-id').value = restaurant.id;
-    document.getElementById('admin-username').value = restaurant.username || '';
-    document.getElementById('admin-password').value = restaurant.password || '';
+    document.getElementById('admin-username').value = restaurant.username || `${restaurant.id}@bulafood.com`;
+    document.getElementById('admin-password').value = restaurant.password || `${restaurant.id}123`;
     document.getElementById('admin-name').value = restaurant.name;
     document.getElementById('admin-phone').value = restaurant.phone || '';
     document.getElementById('admin-status').value = restaurant.status || 'Abierto';
@@ -164,10 +162,9 @@ window.BulaApp = (function() {
     document.getElementById('login-username').value = '';
     document.getElementById('login-password').value = '';
 
-    // Pista de ayuda para demo
     const demoHint = document.getElementById('login-demo-hint');
     if (demoHint) {
-      demoHint.innerHTML = `<i class="fas fa-key"></i> Credenciales de Prueba (${rest.name}):<br/>Usuario: <b>${rest.username}</b> | Clave: <b>${rest.password}</b>`;
+      demoHint.innerHTML = `<i class="fas fa-key"></i> Credenciales Demo (${rest.name}):<br/>Usuario: <b>${rest.username || rest.id + '@bulafood.com'}</b> | Clave: <b>${rest.password || rest.id + '123'}</b>`;
     }
 
     const modal = document.getElementById('login-modal');
@@ -207,6 +204,56 @@ window.BulaApp = (function() {
     }
   }
 
+  // --- Registro de Nuevo Restaurante (Crear tu Vitrina) ---
+  function openRegisterModal() {
+    const modal = document.getElementById('register-modal');
+    const overlay = document.getElementById('register-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.add('active');
+      overlay.classList.add('active');
+    }
+  }
+
+  function closeRegisterModal() {
+    const modal = document.getElementById('register-modal');
+    const overlay = document.getElementById('register-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+  }
+
+  function handleRestaurantRegistration(e) {
+    if (e) e.preventDefault();
+
+    const name = document.getElementById('reg-name').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const username = document.getElementById('reg-username').value.trim();
+    const password = document.getElementById('reg-password').value.trim();
+    const address = document.getElementById('reg-address').value.trim();
+    const deliveryFee = document.getElementById('reg-delivery-fee').value;
+
+    if (!name || !phone || !username || !password) {
+      alert("Por favor completa todos los campos obligatorios (*).");
+      return;
+    }
+
+    const newRest = BulaData.registerRestaurant({
+      name,
+      phone,
+      username,
+      password,
+      address,
+      deliveryFee
+    });
+
+    setAuthenticatedSession(newRest.id, true);
+    closeRegisterModal();
+    BulaUI.showToast("¡Tu Vitrina Digital ha sido creada!");
+    openRestaurant(newRest.id);
+    openAdminModal(newRest.id);
+  }
+
   function logoutAdmin() {
     const restId = document.getElementById('admin-rest-id').value || activeRestaurantId;
     setAuthenticatedSession(restId, false);
@@ -243,13 +290,13 @@ window.BulaApp = (function() {
     }
 
     if (!password) {
-      alert("La Contraseña de acceso es OBLIGATORIA para proteger tu negocio.");
+      alert("La Contraseña de acceso es OBLIGATORIA.");
       document.getElementById('admin-password').focus();
       return;
     }
 
     if (!phone) {
-      alert("El número de WhatsApp Business del restaurante es OBLIGATORIO para recibir pedidos.");
+      alert("El número de WhatsApp Business del restaurante es OBLIGATORIO.");
       document.getElementById('admin-phone').focus();
       return;
     }
@@ -267,7 +314,7 @@ window.BulaApp = (function() {
     });
 
     if (updated) {
-      BulaUI.showToast("¡Credenciales y perfil del negocio guardados!");
+      BulaUI.showToast("¡Perfil y credenciales actualizados!");
       closeAdminModal();
     }
   }
@@ -342,6 +389,9 @@ window.BulaApp = (function() {
     openLoginModal,
     closeLoginModal,
     handleAdminLogin,
+    openRegisterModal,
+    closeRegisterModal,
+    handleRestaurantRegistration,
     logoutAdmin,
     togglePasswordVisibility,
     saveRestaurantProfile,
