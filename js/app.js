@@ -190,19 +190,20 @@ window.BulaApp = (function() {
   async function handleAdminLogin(e) {
     if (e) e.preventDefault();
 
-    const restId = document.getElementById('login-rest-id').value;
+    const restId = document.getElementById('login-rest-id').value || activeRestaurantId;
     const user = document.getElementById('login-username').value;
     const pass = document.getElementById('login-password').value;
 
     const result = await BulaData.authenticateRestaurant(restId, user, pass);
 
-    if (result.success) {
-      setAuthenticatedSession(restId, true);
+    if (result.success && result.restaurant) {
+      const targetId = result.restaurant.id || restId;
+      setAuthenticatedSession(targetId, true);
       closeLoginModal();
-      BulaUI.showToast("¡Autenticación exitosa con Supabase!");
-      openAdminModal(restId);
+      BulaUI.showToast("¡Autenticación exitosa!");
+      openAdminModal(targetId);
     } else {
-      alert(result.message);
+      alert(result.message || "Usuario o contraseña incorrectos.");
     }
   }
 

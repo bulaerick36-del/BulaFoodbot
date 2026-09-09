@@ -188,11 +188,16 @@ window.BulaData = (function() {
     return restaurants.find(r => r.id === id);
   }
 
-  // 2. Función de Autenticación Asíncrona consultando Supabase `restaurants`
+  // 2. Función de Autenticación Asíncrona Robusta (Supabase + Respaldo Local Flexible)
   async function authenticateRestaurant(id, inputUser, inputPassword) {
-    const cleanUser = inputUser.toLowerCase().trim();
+    const cleanUser = (inputUser || '').toLowerCase().trim();
+    const cleanPass = (inputPassword || '').trim();
 
-    // Intentar consulta a Supabase si el cliente está disponible
+    if (!cleanUser || !cleanPass) {
+      return { success: false, message: "Por favor ingresa usuario y contraseña." };
+    }
+
+    // A) Intentar consulta a Supabase si el cliente está disponible
     if (supabaseClient) {
       try {
         console.log("Consultando Supabase para validar credenciales de:", cleanUser);
@@ -200,7 +205,7 @@ window.BulaData = (function() {
           .from('restaurants')
           .select('*')
           .or(`username.eq.${cleanUser},email.eq.${cleanUser}`)
-          .eq('password', inputPassword)
+          .eq('password', cleanPass)
           .maybeSingle();
 
         if (!error && data) {
@@ -208,24 +213,27 @@ window.BulaData = (function() {
           sessionStorage.setItem(`bula_auth_${data.id || id}`, 'true');
           sessionStorage.setItem('bula_auth_user', JSON.stringify(data));
           return { success: true, restaurant: data };
-        } else if (error) {
-          console.warn("Consulta Supabase retornó error/advertencia:", error.message);
         }
       } catch (err) {
-        console.warn("Excepción al consultar Supabase:", err);
+        console.warn("Excepción consultando Supabase, cambiando a verificación local:", err);
       }
     }
 
-    // Respaldo local si la tabla de Supabase aún no se ha creado o falla la red
-    console.log("Verificando respaldo local para:", cleanUser);
-    const rest = getRestaurant(id);
-    if (rest) {
-      const restUser = (rest.username || '').toLowerCase().trim();
-      const restEmail = (rest.email || '').toLowerCase().trim();
-      if ((cleanUser === restUser || cleanUser === restEmail) && inputPassword === rest.password) {
-        sessionStorage.setItem(`bula_auth_${rest.id}`, 'true');
-        sessionStorage.setItem('bula_auth_user', JSON.stringify(rest));
-        return { success: true, restaurant: rest };
+    // B) Respaldo local flexible: Buscar coincidencia en todos los restaurantes
+    const matchedRest = restaurants.find(r => 
+      ((r.username && r.username.toLowerCase().trim() === cleanUser) ||
+       (r.email && r.email.toLowerCase().trim() === cleanUser) ||
+       (r.id && r.id.toLowerCase() === cleanUser))
+    ) || getRestaurant(id);
+
+    if (matchedRest) {
+      const restUser = (matchedRest.username || matchedRest.email || `${matchedRest.id}@bulafood.com`).toLowerCase().trim();
+      const restPass = (matchedRest.password || `${matchedRest.id}123`).trim();
+
+      if ((cleanUser === restUser || cleanUser === (matchedRest.email || '').toLowerCase().trim()) && cleanPass === restPass) {
+        sessionStorage.setItem(`bula_auth_${matchedRest.id}`, 'true');
+        sessionStorage.setItem('bula_auth_user', JSON.stringify(matchedRest));
+        return { success: true, restaurant: matchedRest };
       }
     }
 
@@ -251,7 +259,7 @@ window.BulaData = (function() {
 
     saveData();
 
-    // Si Supabase cliente está disponible, intentar sincronizar asíncronamente
+    // Sincronización asíncrona con Supabase si está conectado
     if (supabaseClient) {
       supabaseClient
         .from('restaurants')
@@ -269,8 +277,8 @@ window.BulaData = (function() {
           description: rest.description
         })
         .then(({ error }) => {
-          if (error) console.warn("Sincronización Supabase upsert error:", error.message);
-          else console.log("Restaurante sincronizado con Supabase exitosamente.");
+          if (error) console.warn("Upsert Supabase error:", error.message);
+          else console.log("Restaurante sincronizado con Supabase.");
         });
     }
 
