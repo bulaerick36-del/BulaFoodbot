@@ -92,10 +92,10 @@ button {
   letter-spacing: -0.3px;
 }
 
-.brand-foo {
+.brand-food {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #ffa502;
 }
 
 .brand-B {
@@ -103,14 +103,14 @@ button {
   font-weight: 900;
   color: #ffffff;
   margin: 0 -0.5px;
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.8);
   transform: translateY(1px);
 }
 
 .brand-ot {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--accent);
+  color: #ffa502;
 }
 
 .location-picker {
