@@ -187,19 +187,19 @@ window.BulaApp = (function() {
     }
   }
 
-  function handleAdminLogin(e) {
+  async function handleAdminLogin(e) {
     if (e) e.preventDefault();
 
     const restId = document.getElementById('login-rest-id').value;
     const user = document.getElementById('login-username').value;
     const pass = document.getElementById('login-password').value;
 
-    const result = BulaData.authenticateRestaurant(restId, user, pass);
+    const result = await BulaData.authenticateRestaurant(restId, user, pass);
 
     if (result.success) {
       setAuthenticatedSession(restId, true);
       closeLoginModal();
-      BulaUI.showToast("¡Autenticación exitosa!");
+      BulaUI.showToast("¡Autenticación exitosa con Supabase!");
       openAdminModal(restId);
     } else {
       alert(result.message);

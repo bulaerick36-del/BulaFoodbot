@@ -1,13 +1,27 @@
-/* BulaFoodboT - Data Store */
+/* BulaFoodboT - Data Store & Supabase Connection */
 window.BulaData = (function() {
+
+  // 1. Configuración e Inicialización de Supabase
+  const SUPABASE_URL = "https://byfckhwtfetqotoqsqwo.supabase.co";
+  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "sb_publishable_gXixzFlqN8TgbAwq6BsgWQ_LFfhnU4X";
+  
+  let supabaseClient = null;
+  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log("Supabase Client inicializado correctamente con URL:", SUPABASE_URL);
+  } else {
+    console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
+  }
+
   const defaultRestaurants = [
     {
       id: "mi-rey",
       name: "Restaurante Mi Rey",
       status: "Abierto",
-      phone: "+573001234567", // WhatsApp Business
-      username: "mirey@bulafood.com", // Credencial de Acceso
-      password: "mirey123",           // Contraseña de Acceso
+      phone: "+573001234567",
+      username: "mirey@bulafood.com",
+      email: "mirey@bulafood.com",
+      password: "mirey123",
       rating: "4.9",
       reviewsCount: 142,
       deliveryFee: 3500,
@@ -94,6 +108,7 @@ window.BulaData = (function() {
       status: "Abierto",
       phone: "+573019876543",
       username: "sabor@bulafood.com",
+      email: "sabor@bulafood.com",
       password: "sabor123",
       rating: "4.7",
       reviewsCount: 98,
@@ -123,6 +138,7 @@ window.BulaData = (function() {
       status: "Cerrado",
       phone: "+573025554433",
       username: "rancho@bulafood.com",
+      email: "rancho@bulafood.com",
       password: "rancho123",
       rating: "4.8",
       reviewsCount: 210,
@@ -145,9 +161,9 @@ window.BulaData = (function() {
       const saved = localStorage.getItem('bula_food_restaurants');
       if (saved) {
         restaurants = JSON.parse(saved);
-        // Garantizar que todos tengan credenciales por defecto si faltaran
         restaurants.forEach(r => {
           if (!r.username) r.username = `${r.id}@bulafood.com`;
+          if (!r.email) r.email = `${r.id}@bulafood.com`;
           if (!r.password) r.password = `${r.id}123`;
         });
       } else {
@@ -172,16 +188,47 @@ window.BulaData = (function() {
     return restaurants.find(r => r.id === id);
   }
 
-  function authenticateRestaurant(id, inputUser, inputPassword) {
-    const rest = getRestaurant(id);
-    if (!rest) return { success: false, message: "Restaurante no encontrado" };
-
+  // 2. Función de Autenticación Asíncrona consultando Supabase `restaurants`
+  async function authenticateRestaurant(id, inputUser, inputPassword) {
     const cleanUser = inputUser.toLowerCase().trim();
-    const restUser = (rest.username || '').toLowerCase().trim();
 
-    if (cleanUser === restUser && inputPassword === rest.password) {
-      return { success: true, restaurant: rest };
+    // Intentar consulta a Supabase si el cliente está disponible
+    if (supabaseClient) {
+      try {
+        console.log("Consultando Supabase para validar credenciales de:", cleanUser);
+        const { data, error } = await supabaseClient
+          .from('restaurants')
+          .select('*')
+          .or(`username.eq.${cleanUser},email.eq.${cleanUser}`)
+          .eq('password', inputPassword)
+          .maybeSingle();
+
+        if (!error && data) {
+          console.log("Autenticación exitosa en Supabase:", data);
+          sessionStorage.setItem(`bula_auth_${data.id || id}`, 'true');
+          sessionStorage.setItem('bula_auth_user', JSON.stringify(data));
+          return { success: true, restaurant: data };
+        } else if (error) {
+          console.warn("Consulta Supabase retornó error/advertencia:", error.message);
+        }
+      } catch (err) {
+        console.warn("Excepción al consultar Supabase:", err);
+      }
     }
+
+    // Respaldo local si la tabla de Supabase aún no se ha creado o falla la red
+    console.log("Verificando respaldo local para:", cleanUser);
+    const rest = getRestaurant(id);
+    if (rest) {
+      const restUser = (rest.username || '').toLowerCase().trim();
+      const restEmail = (rest.email || '').toLowerCase().trim();
+      if ((cleanUser === restUser || cleanUser === restEmail) && inputPassword === rest.password) {
+        sessionStorage.setItem(`bula_auth_${rest.id}`, 'true');
+        sessionStorage.setItem('bula_auth_user', JSON.stringify(rest));
+        return { success: true, restaurant: rest };
+      }
+    }
+
     return { success: false, message: "Usuario o contraseña de administración incorrectos." };
   }
 
@@ -189,8 +236,10 @@ window.BulaData = (function() {
     const rest = getRestaurant(id);
     if (!rest) return false;
 
-    // Actualizar campos de perfil y credenciales
-    if (updatedData.username) rest.username = updatedData.username.trim();
+    if (updatedData.username) {
+      rest.username = updatedData.username.trim();
+      rest.email = updatedData.username.trim();
+    }
     if (updatedData.password) rest.password = updatedData.password.trim();
     if (updatedData.name) rest.name = updatedData.name.trim();
     if (updatedData.phone) rest.phone = updatedData.phone.trim();
@@ -201,6 +250,30 @@ window.BulaData = (function() {
     if (updatedData.description) rest.description = updatedData.description.trim();
 
     saveData();
+
+    // Si Supabase cliente está disponible, intentar sincronizar asíncronamente
+    if (supabaseClient) {
+      supabaseClient
+        .from('restaurants')
+        .upsert({
+          id: rest.id,
+          name: rest.name,
+          phone: rest.phone,
+          username: rest.username,
+          email: rest.email,
+          password: rest.password,
+          status: rest.status,
+          deliveryFee: rest.deliveryFee,
+          deliveryTime: rest.deliveryTime,
+          address: rest.address,
+          description: rest.description
+        })
+        .then(({ error }) => {
+          if (error) console.warn("Sincronización Supabase upsert error:", error.message);
+          else console.log("Restaurante sincronizado con Supabase exitosamente.");
+        });
+    }
+
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
@@ -209,6 +282,7 @@ window.BulaData = (function() {
 
   return {
     get restaurants() { return restaurants; },
+    get supabaseClient() { return supabaseClient; },
     getRestaurant,
     authenticateRestaurant,
     updateRestaurantProfile
