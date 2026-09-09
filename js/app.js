@@ -26,8 +26,8 @@ window.BulaApp = (function() {
     // Initial cart render
     BulaUI.updateCartUI(BulaCart.getSummary());
 
-    // Default: Open Restaurante Mi Rey para navegación de cliente
-    openRestaurant("mi-rey");
+    // Default: Mostrar siempre el catálogo general de restaurantes al cargar/recargar
+    showHomeView();
 
     // Setup Search listener
     const searchInput = document.getElementById('search-input');
