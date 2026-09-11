@@ -382,6 +382,286 @@ window.BulaApp = (function() {
     window.open(waUrl, '_blank');
   }
 
+  // --- Gestión de Categorías ---
+  function openAddCategoryModal() {
+    const restaurant = BulaData.getRestaurant(activeRestaurantId);
+    if (!restaurant) return;
+
+    if (!isAuthenticated(activeRestaurantId)) {
+      openLoginModal(restaurant);
+      return;
+    }
+
+    const input = document.getElementById('cat-name-input');
+    if (input) input.value = '';
+
+    const modal = document.getElementById('category-modal');
+    const overlay = document.getElementById('category-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.add('active');
+      overlay.classList.add('active');
+    }
+  }
+
+  function closeAddCategoryModal() {
+    const modal = document.getElementById('category-modal');
+    const overlay = document.getElementById('category-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+  }
+
+  function handleAddCategorySubmit(e) {
+    if (e) e.preventDefault();
+    const input = document.getElementById('cat-name-input');
+    if (!input || !input.value.trim()) return;
+
+    const catName = input.value.trim();
+    const success = BulaData.addCategory(activeRestaurantId, catName);
+    if (success) {
+      closeAddCategoryModal();
+      BulaUI.showToast(`¡Categoría "${catName}" agregada!`);
+      filterCategory(catName);
+    }
+  }
+
+  // --- Gestión de Platos / Bebidas ---
+  let tempUploadedImageData = "";
+  let tempUploadedVideoData = "";
+
+  function openAddItemModal(dishToEdit = null) {
+    const restaurant = BulaData.getRestaurant(activeRestaurantId);
+    if (!restaurant) return;
+
+    if (!isAuthenticated(activeRestaurantId)) {
+      openLoginModal(restaurant);
+      return;
+    }
+
+    // Populate category dropdown
+    const catSelect = document.getElementById('item-category');
+    if (catSelect) {
+      const cats = restaurant.categories || ["Popular", "Platos Fuertes", "Bebidas"];
+      catSelect.innerHTML = cats.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+
+    // Reset temporary upload state
+    tempUploadedImageData = "";
+    tempUploadedVideoData = "";
+
+    const titleEl = document.getElementById('item-modal-title');
+    const hiddenId = document.getElementById('item-id-hidden');
+    const nameEl = document.getElementById('item-name');
+    const descEl = document.getElementById('item-desc');
+    const priceEl = document.getElementById('item-price');
+    const deliveryEl = document.getElementById('item-delivery');
+    const variantsEl = document.getElementById('item-variants');
+    const imgUrlEl = document.getElementById('item-image-url');
+    const videoUrlEl = document.getElementById('item-video-url');
+
+    const imgPrevContainer = document.getElementById('item-image-preview-container');
+    const imgPreview = document.getElementById('item-image-preview');
+    const videoPrevContainer = document.getElementById('item-video-preview-container');
+    const videoPreview = document.getElementById('item-video-preview');
+
+    if (dishToEdit && typeof dishToEdit === 'object') {
+      if (titleEl) titleEl.textContent = 'Editar Plato / Bebida';
+      if (hiddenId) hiddenId.value = dishToEdit.id;
+      if (nameEl) nameEl.value = dishToEdit.name;
+      if (catSelect) catSelect.value = dishToEdit.category || (restaurant.categories ? restaurant.categories[0] : 'Platos Fuertes');
+      if (descEl) descEl.value = dishToEdit.description || '';
+      if (priceEl) priceEl.value = dishToEdit.price || '';
+      if (deliveryEl) deliveryEl.value = dishToEdit.deliveryFee !== undefined && dishToEdit.deliveryFee !== null ? dishToEdit.deliveryFee : '';
+      if (variantsEl) variantsEl.value = Array.isArray(dishToEdit.variants) ? dishToEdit.variants.join(', ') : (dishToEdit.variants || '');
+      if (imgUrlEl) imgUrlEl.value = dishToEdit.image || '';
+      if (videoUrlEl) videoUrlEl.value = dishToEdit.video || '';
+
+      if (dishToEdit.image) {
+        tempUploadedImageData = dishToEdit.image;
+        if (imgPreview) imgPreview.src = dishToEdit.image;
+        if (imgPrevContainer) imgPrevContainer.style.display = 'flex';
+      } else {
+        if (imgPrevContainer) imgPrevContainer.style.display = 'none';
+      }
+
+      if (dishToEdit.video) {
+        tempUploadedVideoData = dishToEdit.video;
+        if (videoPreview) videoPreview.src = dishToEdit.video;
+        if (videoPrevContainer) videoPrevContainer.style.display = 'block';
+      } else {
+        if (videoPrevContainer) videoPrevContainer.style.display = 'none';
+      }
+    } else {
+      if (titleEl) titleEl.textContent = 'Agregar Plato / Bebida';
+      if (hiddenId) hiddenId.value = '';
+      if (nameEl) nameEl.value = '';
+      if (descEl) descEl.value = '';
+      if (priceEl) priceEl.value = '';
+      if (deliveryEl) deliveryEl.value = '';
+      if (variantsEl) variantsEl.value = '';
+      if (imgUrlEl) imgUrlEl.value = '';
+      if (videoUrlEl) videoUrlEl.value = '';
+      if (imgPrevContainer) imgPrevContainer.style.display = 'none';
+      if (videoPrevContainer) videoPrevContainer.style.display = 'none';
+
+      if (activeCategory && activeCategory !== 'Todos' && activeCategory !== 'Popular' && catSelect) {
+        catSelect.value = activeCategory;
+      }
+    }
+
+    const modal = document.getElementById('item-modal');
+    const overlay = document.getElementById('item-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.add('active');
+      overlay.classList.add('active');
+    }
+  }
+
+  function closeAddItemModal() {
+    const modal = document.getElementById('item-modal');
+    const overlay = document.getElementById('item-modal-overlay');
+    if (modal && overlay) {
+      modal.classList.remove('active');
+      overlay.classList.remove('active');
+    }
+  }
+
+  function openEditItemModal(dishId) {
+    const restaurant = BulaData.getRestaurant(activeRestaurantId);
+    if (!restaurant || !restaurant.menu) return;
+    const dish = restaurant.menu.find(d => d.id === dishId);
+    if (dish) {
+      openAddItemModal(dish);
+    }
+  }
+
+  function deleteDishItem(dishId) {
+    const restaurant = BulaData.getRestaurant(activeRestaurantId);
+    if (!restaurant) return;
+
+    if (!isAuthenticated(activeRestaurantId)) {
+      openLoginModal(restaurant);
+      return;
+    }
+
+    if (confirm("¿Estás seguro de que deseas eliminar este producto del menú?")) {
+      const deleted = BulaData.deleteDish(activeRestaurantId, dishId);
+      if (deleted) {
+        BulaUI.showToast("Producto eliminado del menú.");
+      }
+    }
+  }
+
+  function handleImageUrlInput(val) {
+    const previewContainer = document.getElementById('item-image-preview-container');
+    const previewImg = document.getElementById('item-image-preview');
+    if (val && val.trim()) {
+      tempUploadedImageData = val.trim();
+      if (previewImg) previewImg.src = tempUploadedImageData;
+      if (previewContainer) previewContainer.style.display = 'flex';
+    } else if (!tempUploadedImageData.startsWith('data:image')) {
+      tempUploadedImageData = "";
+      if (previewContainer) previewContainer.style.display = 'none';
+    }
+  }
+
+  function handleImageFileUpload(inputEl) {
+    if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+    const file = inputEl.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      tempUploadedImageData = e.target.result;
+      const previewContainer = document.getElementById('item-image-preview-container');
+      const previewImg = document.getElementById('item-image-preview');
+      const urlInput = document.getElementById('item-image-url');
+
+      if (previewImg) previewImg.src = tempUploadedImageData;
+      if (previewContainer) previewContainer.style.display = 'flex';
+      if (urlInput) urlInput.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleVideoUrlInput(val) {
+    const previewContainer = document.getElementById('item-video-preview-container');
+    const previewVideo = document.getElementById('item-video-preview');
+    if (val && val.trim()) {
+      tempUploadedVideoData = val.trim();
+      if (previewVideo) previewVideo.src = tempUploadedVideoData;
+      if (previewContainer) previewContainer.style.display = 'block';
+    } else if (!tempUploadedVideoData.startsWith('data:video')) {
+      tempUploadedVideoData = "";
+      if (previewContainer) previewContainer.style.display = 'none';
+    }
+  }
+
+  function handleVideoFileUpload(inputEl) {
+    if (!inputEl || !inputEl.files || !inputEl.files[0]) return;
+    const file = inputEl.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      tempUploadedVideoData = e.target.result;
+      const previewContainer = document.getElementById('item-video-preview-container');
+      const previewVideo = document.getElementById('item-video-preview');
+      const urlInput = document.getElementById('item-video-url');
+
+      if (previewVideo) previewVideo.src = tempUploadedVideoData;
+      if (previewContainer) previewContainer.style.display = 'block';
+      if (urlInput) urlInput.value = '';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleSaveItemSubmit(e) {
+    if (e) e.preventDefault();
+
+    const hiddenId = document.getElementById('item-id-hidden').value;
+    const name = document.getElementById('item-name').value.trim();
+    const category = document.getElementById('item-category').value;
+    const desc = document.getElementById('item-desc').value.trim();
+    const price = document.getElementById('item-price').value;
+    const delivery = document.getElementById('item-delivery').value;
+    const variantsRaw = document.getElementById('item-variants').value.trim();
+    const imageUrl = document.getElementById('item-image-url').value.trim();
+    const videoUrl = document.getElementById('item-video-url').value.trim();
+
+    if (!name || !category || !desc || !price) {
+      alert("Por favor completa los campos obligatorios (*): Nombre, Categoría, Descripción y Precio.");
+      return;
+    }
+
+    const finalImage = imageUrl || tempUploadedImageData;
+    if (!finalImage) {
+      alert("La Imagen es OBLIGATORIA para mostrar el producto en la tarjeta. Pegar una URL o subir una foto.");
+      return;
+    }
+
+    const finalVideo = videoUrl || tempUploadedVideoData;
+
+    const dishPayload = {
+      name,
+      category,
+      description: desc,
+      price,
+      deliveryFee: delivery ? Number(delivery) : null,
+      variants: variantsRaw,
+      image: finalImage,
+      video: finalVideo
+    };
+
+    if (hiddenId) {
+      BulaData.updateDish(activeRestaurantId, hiddenId, dishPayload);
+      BulaUI.showToast(`¡${name} actualizado en el menú!`);
+    } else {
+      BulaData.addDish(activeRestaurantId, dishPayload);
+      BulaUI.showToast(`¡${name} agregado al menú!`);
+    }
+
+    closeAddItemModal();
+    filterCategory(category);
+  }
+
   return {
     init,
     showHomeView,
@@ -401,7 +681,20 @@ window.BulaApp = (function() {
     togglePasswordVisibility,
     saveRestaurantProfile,
     testWhatsAppConnection,
-    sendWhatsAppOrder
+    sendWhatsAppOrder,
+    isAuthenticated,
+    openAddCategoryModal,
+    closeAddCategoryModal,
+    handleAddCategorySubmit,
+    openAddItemModal,
+    closeAddItemModal,
+    openEditItemModal,
+    deleteDishItem,
+    handleImageUrlInput,
+    handleImageFileUpload,
+    handleVideoUrlInput,
+    handleVideoFileUpload,
+    handleSaveItemSubmit
   };
 })();
 

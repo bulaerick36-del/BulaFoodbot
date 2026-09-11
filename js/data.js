@@ -361,6 +361,85 @@ window.BulaData = (function() {
     return true;
   }
 
+  // 4. Gestión de Categorías y Platos/Bebidas en Menú
+  function addCategory(restaurantId, categoryName) {
+    const rest = getRestaurant(restaurantId);
+    if (!rest) return false;
+
+    const cleanCat = categoryName.trim();
+    if (!cleanCat) return false;
+
+    if (!rest.categories) rest.categories = ["Popular", "Platos Fuertes", "Bebidas"];
+    if (!rest.categories.includes(cleanCat)) {
+      rest.categories.push(cleanCat);
+      saveData();
+      window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
+    }
+    return true;
+  }
+
+  function addDish(restaurantId, dishData) {
+    const rest = getRestaurant(restaurantId);
+    if (!rest) return null;
+
+    if (!rest.menu) rest.menu = [];
+
+    const newId = `${rest.id}-${Date.now()}`;
+    const newDish = {
+      id: newId,
+      name: dishData.name.trim(),
+      category: dishData.category || "Platos Fuertes",
+      price: Number(dishData.price) || 0,
+      deliveryFee: dishData.deliveryFee ? Number(dishData.deliveryFee) : null,
+      description: dishData.description ? dishData.description.trim() : "",
+      image: dishData.image || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=500&q=80",
+      video: dishData.video || null,
+      variants: Array.isArray(dishData.variants) ? dishData.variants : (dishData.variants ? String(dishData.variants).split(',').map(v => v.trim()).filter(Boolean) : []),
+      popular: Boolean(dishData.popular),
+      badge: dishData.badge || null
+    };
+
+    rest.menu.push(newDish);
+    saveData();
+    window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
+    return newDish;
+  }
+
+  function updateDish(restaurantId, dishId, dishData) {
+    const rest = getRestaurant(restaurantId);
+    if (!rest || !rest.menu) return false;
+
+    const index = rest.menu.findIndex(d => d.id === dishId);
+    if (index === -1) return false;
+
+    const existing = rest.menu[index];
+    rest.menu[index] = {
+      ...existing,
+      name: dishData.name ? dishData.name.trim() : existing.name,
+      category: dishData.category || existing.category,
+      price: dishData.price !== undefined ? Number(dishData.price) : existing.price,
+      deliveryFee: dishData.deliveryFee !== undefined ? (dishData.deliveryFee ? Number(dishData.deliveryFee) : null) : existing.deliveryFee,
+      description: dishData.description !== undefined ? dishData.description.trim() : existing.description,
+      image: dishData.image || existing.image,
+      video: dishData.video !== undefined ? dishData.video : existing.video,
+      variants: dishData.variants !== undefined ? (Array.isArray(dishData.variants) ? dishData.variants : String(dishData.variants).split(',').map(v => v.trim()).filter(Boolean)) : existing.variants
+    };
+
+    saveData();
+    window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
+    return true;
+  }
+
+  function deleteDish(restaurantId, dishId) {
+    const rest = getRestaurant(restaurantId);
+    if (!rest || !rest.menu) return false;
+
+    rest.menu = rest.menu.filter(d => d.id !== dishId);
+    saveData();
+    window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
+    return true;
+  }
+
   loadData();
 
   return {
@@ -369,6 +448,10 @@ window.BulaData = (function() {
     getRestaurant,
     authenticateRestaurant,
     registerRestaurant,
-    updateRestaurantProfile
+    updateRestaurantProfile,
+    addCategory,
+    addDish,
+    updateDish,
+    deleteDish
   };
 })();
