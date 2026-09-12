@@ -11,8 +11,9 @@ module.exports = (req, res) => {
 
   res.status(200).json({
     supabaseUrl: 'https://vxvyiklzyfmfbrgwqgxv.supabase.co',
-    supabaseAnonKey: 'sb_publishable_mnfzndBWigcp3yGRUMH9ng_x0rDN...'
+    supabaseAnonKey: 'sb_publishable_mnfzndBWIgcp3yGRUMh9ng_xOrDNrPn'
   });
+
 
 
 };

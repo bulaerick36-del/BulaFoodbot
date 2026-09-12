@@ -3,7 +3,8 @@ window.BulaData = (function() {
 
   // 1. Configuración e Inicialización de Supabase en Texto Plano Fijo
   const SUPABASE_URL = "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_mnfzndBWigcp3yGRUMH9ng_x0rDN...";
+  const SUPABASE_ANON_KEY = "sb_publishable_mnfzndBWIgcp3yGRUMh9ng_xOrDNrPn";
+
   
   let supabaseClient = null;
   if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
