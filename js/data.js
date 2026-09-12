@@ -4,19 +4,51 @@ window.BulaData = (function() {
   // 1. Configuración e Inicialización de Supabase en Texto Plano Fijo
   const SUPABASE_URL = "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_mnfzndBWIgcp3yGRUMh9ng_xOrDNrPn";
-
   
   let supabaseClient = null;
   if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
     try {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("Supabase Client inicializado correctamente con URL fija:", SUPABASE_URL);
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          }
+        },
+        auth: { persistSession: false, autoRefreshToken: false }
+      });
+      console.log("Supabase Client inicializado con cabeceras explícitas de API Key:", SUPABASE_URL);
     } catch (err) {
       console.warn("Error al inicializar cliente de Supabase:", err);
     }
   } else {
     console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
   }
+
+  // Helper de solicitud HTTP REST directa sin bloqueos del SDK
+  async function directSupabaseRestFetch(endpoint, method = 'GET', body = null) {
+    try {
+      const headers = {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': method === 'POST' ? 'return=representation' : 'count=exact'
+      };
+      const opts = { method, headers };
+      if (body) opts.body = JSON.stringify(body);
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, opts);
+      if (response.ok) {
+        const json = await response.json();
+        return { data: json, error: null };
+      } else {
+        const text = await response.text();
+        return { data: null, error: { message: `HTTP ${response.status}: ${text}` } };
+      }
+    } catch (e) {
+      return { data: null, error: { message: e.message } };
+    }
+  }
+
 
 
 
@@ -233,39 +265,44 @@ window.BulaData = (function() {
   }
 
   async function fetchRestaurants() {
-    if (!supabaseClient) {
-      console.warn("Supabase SDK no disponible. Usando catálogo local.");
-      return restaurants;
-    }
-    try {
-      console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase...");
-      const { data, error } = await supabaseClient
-        .from('restaurants')
-        .select('*');
+    let data = null;
+    let error = null;
 
-      if (error) {
-        console.warn("Error consultando tabla 'restaurants' en Supabase:", error.message);
-        return restaurants;
+    if (supabaseClient) {
+      try {
+        console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase...");
+        const res = await supabaseClient.from('restaurants').select('*');
+        data = res.data;
+        error = res.error;
+      } catch (err) {
+        error = err;
       }
-
-      if (data && Array.isArray(data) && data.length > 0) {
-        const remoteRestaurants = data.map(normalizeRestaurant).filter(Boolean);
-
-        const map = new Map();
-        defaultRestaurants.forEach(r => map.set(r.id, r));
-        restaurants.forEach(r => map.set(r.id, r));
-        remoteRestaurants.forEach(r => map.set(r.id, r));
-
-        restaurants = Array.from(map.values());
-        saveData();
-        console.log(`¡${remoteRestaurants.length} restaurantes oficiales sincronizados desde Supabase!`);
-      }
-      return restaurants;
-    } catch (err) {
-      console.error("Excepción en fetchRestaurants:", err);
-      return restaurants;
     }
+
+    if (error || !data || (Array.isArray(data) && data.length === 0)) {
+      console.log("Ejecutando consulta directa vía REST HTTP PostgREST API...");
+      const direct = await directSupabaseRestFetch('restaurants?select=*', 'GET');
+      if (direct.data && Array.isArray(direct.data) && direct.data.length > 0) {
+        data = direct.data;
+        error = null;
+      }
+    }
+
+    if (data && Array.isArray(data) && data.length > 0) {
+      const remoteRestaurants = data.map(normalizeRestaurant).filter(Boolean);
+
+      const map = new Map();
+      defaultRestaurants.forEach(r => map.set(r.id, r));
+      restaurants.forEach(r => map.set(r.id, r));
+      remoteRestaurants.forEach(r => map.set(r.id, r));
+
+      restaurants = Array.from(map.values());
+      saveData();
+      console.log(`¡${remoteRestaurants.length} restaurantes oficiales sincronizados desde Supabase!`);
+    }
+    return restaurants;
   }
+
 
   function loadData() {
     try {
@@ -491,7 +528,17 @@ window.BulaData = (function() {
               .select('*');
 
             if (res3.error) {
-              console.error("Error definitivo al guardar en Supabase (Posible bloqueo RLS en tabla restaurants):", res3.error.message);
+              console.warn("Intento SDK 3 falló. Ejecutando inserción directa mediante HTTP REST PostgREST API...");
+              const directPost = await directSupabaseRestFetch('restaurants', 'POST', [ payloadNoID ]);
+              if (directPost.data) {
+                console.log("¡Vitrina insertada exitosamente en Supabase mediante HTTP REST directo!", directPost.data);
+                if (directPost.data[0] && directPost.data[0].id) {
+                  newRestaurant.id = directPost.data[0].id;
+                  saveData();
+                }
+              } else {
+                console.error("Error definitivo al guardar en Supabase:", directPost.error ? directPost.error.message : res3.error.message);
+              }
             } else {
               console.log("¡Vitrina guardada exitosamente en Supabase (UUID generado por Postgres)!:", res3.data);
               if (res3.data && res3.data[0] && res3.data[0].id) {
@@ -499,6 +546,7 @@ window.BulaData = (function() {
                 saveData();
               }
             }
+
           } else {
             console.log("¡Vitrina insertada exitosamente en Supabase (UUID explícito)!:", res2.data);
           }
