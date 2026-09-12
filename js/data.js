@@ -2,16 +2,43 @@
 window.BulaData = (function() {
 
   // 1. Configuración e Inicialización de Supabase
-  const SUPABASE_URL = "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
+  const SUPABASE_URL = window.SUPABASE_URL || "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
   const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "sb_publishable_gXixzFlqN8TgbAwq6BsgWQ_LFfhnU4X";
   
   let supabaseClient = null;
-  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log("Supabase Client inicializado correctamente con URL:", SUPABASE_URL);
-  } else {
-    console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
+
+  function initClient(url, key) {
+    if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
+      try {
+        const cleanUrl = url || SUPABASE_URL;
+        const cleanKey = key || SUPABASE_ANON_KEY;
+        supabaseClient = window.supabase.createClient(cleanUrl, cleanKey);
+        console.log("Supabase Client inicializado correctamente con URL:", cleanUrl);
+      } catch (err) {
+        console.warn("Error al inicializar cliente de Supabase:", err);
+      }
+    } else {
+      console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
+    }
   }
+
+  initClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Carga de credenciales dinámicas en Vercel si existen variables de entorno
+  if (typeof fetch === 'function') {
+    fetch('/api/config')
+      .then(res => res.ok ? res.json() : null)
+      .then(cfg => {
+        if (cfg && cfg.supabaseUrl && cfg.supabaseAnonKey) {
+          initClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+          if (typeof fetchRestaurants === 'function') {
+            fetchRestaurants();
+          }
+        }
+      })
+      .catch(() => {});
+  }
+
 
 
   const defaultRestaurants = [
