@@ -11,6 +11,7 @@ module.exports = (req, res) => {
 
   res.status(200).json({
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || 'https://vxvyiklzyfmfbrgwqgxv.supabase.co',
-    supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_gXixzFlqN8TgbAwq6BsgWQ_LFfhnU4X'
+    supabaseAnonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_mnfzndBWigcp3yGRUMH9ng_x0rDN...'
   });
+
 };

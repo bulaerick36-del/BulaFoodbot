@@ -3,7 +3,8 @@ window.BulaData = (function() {
 
   // 1. Configuración e Inicialización de Supabase
   const SUPABASE_URL = window.SUPABASE_URL || "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
-  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "sb_publishable_gXixzFlqN8TgbAwq6BsgWQ_LFfhnU4X";
+  const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "sb_publishable_mnfzndBWigcp3yGRUMH9ng_x0rDN...";
+
   
   let supabaseClient = null;
 
