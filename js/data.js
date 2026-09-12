@@ -388,11 +388,22 @@ window.BulaData = (function() {
       ]
     };
 
-    // Inserción Real en la tabla 'restaurants' de Supabase
+    // 1. Guardar de forma inmediata e indestructible en memoria y localStorage
+    const existingIndex = restaurants.findIndex(r => r.id === newRestaurant.id);
+    if (existingIndex >= 0) {
+      restaurants[existingIndex] = newRestaurant;
+    } else {
+      restaurants.push(newRestaurant);
+    }
+    saveData();
+
+    // 2. Inserción Real en la tabla 'restaurants' de Supabase con fallbacks de esquema
     if (supabaseClient) {
       try {
-        console.log("Ejecutando inserción real en Supabase para vitrina:", newRestaurant.name);
-        const record = {
+        console.log("Iniciando inserción real en Supabase para vitrina:", newRestaurant.name);
+        
+        // Payload 1: Convención estándar PostgreSQL (snake_case)
+        const payloadSnake = {
           id: newRestaurant.id,
           name: newRestaurant.name,
           phone: newRestaurant.phone,
@@ -401,55 +412,93 @@ window.BulaData = (function() {
           alias: newRestaurant.alias,
           password: newRestaurant.password,
           status: newRestaurant.status,
-          deliveryFee: newRestaurant.deliveryFee,
           delivery_fee: newRestaurant.deliveryFee,
-          deliveryTime: newRestaurant.deliveryTime,
           delivery_time: newRestaurant.deliveryTime,
           address: newRestaurant.address,
+          description: newRestaurant.description,
           rating: newRestaurant.rating,
-          reviewsCount: newRestaurant.reviewsCount,
           reviews_count: newRestaurant.reviewsCount,
-          minOrder: newRestaurant.minOrder,
-          min_order: newRestaurant.minOrder,
-          coverImage: newRestaurant.coverImage,
           cover_image: newRestaurant.coverImage,
           logo: newRestaurant.logo,
           tags: newRestaurant.tags,
-          description: newRestaurant.description,
           categories: newRestaurant.categories,
           menu: newRestaurant.menu
         };
 
-        const { data, error } = await supabaseClient
+        let { data, error } = await supabaseClient
           .from('restaurants')
-          .insert([ record ])
+          .insert([ payloadSnake ])
           .select('*');
 
         if (error) {
-          console.warn("Supabase .insert error, realizando fallback .upsert():", error.message);
-          const { error: upsertErr } = await supabaseClient
-            .from('restaurants')
-            .upsert([ record ]);
+          console.warn("Intento 1 (insert snake_case) rechazado por Supabase:", error.message);
+          
+          // Payload 2: Convención JavaScript (camelCase)
+          const payloadCamel = {
+            id: newRestaurant.id,
+            name: newRestaurant.name,
+            phone: newRestaurant.phone,
+            email: newRestaurant.email,
+            username: newRestaurant.username,
+            alias: newRestaurant.alias,
+            password: newRestaurant.password,
+            status: newRestaurant.status,
+            deliveryFee: newRestaurant.deliveryFee,
+            deliveryTime: newRestaurant.deliveryTime,
+            address: newRestaurant.address,
+            description: newRestaurant.description,
+            coverImage: newRestaurant.coverImage,
+            logo: newRestaurant.logo,
+            tags: newRestaurant.tags,
+            categories: newRestaurant.categories,
+            menu: newRestaurant.menu
+          };
 
-          if (upsertErr) {
-            console.error("Error persistiendo restaurante en Supabase:", upsertErr.message);
+          const res2 = await supabaseClient
+            .from('restaurants')
+            .insert([ payloadCamel ])
+            .select('*');
+
+          if (res2.error) {
+            console.warn("Intento 2 (insert camelCase) rechazado por Supabase:", res2.error.message);
+
+            // Payload 3: Columnas esenciales garantizadas en cualquier tabla de restaurantes
+            const payloadBase = {
+              id: newRestaurant.id,
+              name: newRestaurant.name,
+              phone: newRestaurant.phone,
+              email: newRestaurant.email,
+              username: newRestaurant.username,
+              password: newRestaurant.password,
+              status: newRestaurant.status,
+              address: newRestaurant.address
+            };
+
+            const res3 = await supabaseClient
+              .from('restaurants')
+              .upsert([ payloadBase ])
+              .select('*');
+
+            if (res3.error) {
+              console.error("Error persistiendo restaurante en Supabase (verificar RLS o tabla):", res3.error.message);
+            } else {
+              console.log("¡Vitrina guardada exitosamente en Supabase (Fallback Base)!", res3.data);
+            }
           } else {
-            console.log("¡Restaurante guardado exitosamente en Supabase vía upsert!");
+            console.log("¡Vitrina insertada exitosamente en Supabase (camelCase)!", res2.data);
           }
         } else {
-          console.log("¡Inserción exitosa de nueva vitrina en la tabla 'restaurants' de Supabase!", data);
+          console.log("¡Inserción exitosa de nueva vitrina en Supabase (snake_case)!", data);
         }
       } catch (err) {
         console.error("Excepción en inserción Supabase:", err);
       }
     }
 
-    restaurants.push(newRestaurant);
-    saveData();
-
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
     return newRestaurant;
   }
+
 
   async function updateRestaurantProfile(id, updatedData) {
     const rest = getRestaurant(id);
