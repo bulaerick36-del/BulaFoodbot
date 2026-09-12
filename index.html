@@ -2,7 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
+  <script>
+    // Purga automática de caché de Opera / Chrome / ServiceWorker / Vercel
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        regs.forEach(r => r.unregister());
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(keys => {
+        keys.forEach(k => caches.delete(k));
+      });
+    }
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
   <title>BulaFood - Vitrinas Digitales & Agente de Restaurantes</title>
   <meta name="description" content="Plataforma de Vitrinas Digitales e Pedidos Inteligentes para Restaurantes Locales." />
   
@@ -516,10 +530,11 @@
 
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/data.js?v=20260912_2"></script>
-  <script src="js/cart.js?v=20260912_2"></script>
-  <script src="js/ui.js?v=20260912_2"></script>
-  <script src="js/app.js?v=20260912_2"></script>
+  <script src="js/data.js?v=3000"></script>
+  <script src="js/cart.js?v=3000"></script>
+  <script src="js/ui.js?v=3000"></script>
+  <script src="js/app.js?v=3000"></script>
+
 
 
 </body>
