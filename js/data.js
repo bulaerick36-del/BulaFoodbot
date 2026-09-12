@@ -2,7 +2,7 @@
 window.BulaData = (function() {
 
   // 1. Configuración e Inicialización de Supabase
-  const SUPABASE_URL = "https://byfckhwtfetqotoqsqwo.supabase.co";
+  const SUPABASE_URL = "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
   const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "sb_publishable_gXixzFlqN8TgbAwq6BsgWQ_LFfhnU4X";
   
   let supabaseClient = null;
@@ -12,6 +12,7 @@ window.BulaData = (function() {
   } else {
     console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
   }
+
 
   const defaultRestaurants = [
     {
