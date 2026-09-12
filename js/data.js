@@ -159,6 +159,106 @@ window.BulaData = (function() {
 
   let restaurants = [];
 
+  function normalizeRestaurant(raw) {
+    if (!raw) return null;
+    const defaultMenu = [
+      {
+        id: `${raw.id || 'rest'}-1`,
+        name: "Plato Especial de la Casa",
+        category: "Platos Fuertes",
+        price: 22000,
+        description: "Nuestra especialidad insigne recién preparada.",
+        image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80",
+        popular: true,
+        badge: "Nuevo"
+      }
+    ];
+
+    let parsedMenu = [];
+    if (Array.isArray(raw.menu)) {
+      parsedMenu = raw.menu;
+    } else if (typeof raw.menu === 'string' && raw.menu.trim() !== '') {
+      try { parsedMenu = JSON.parse(raw.menu); } catch (e) { parsedMenu = defaultMenu; }
+    } else {
+      parsedMenu = defaultMenu;
+    }
+
+    let parsedCategories = ["Popular", "Platos Fuertes", "Bebidas"];
+    if (Array.isArray(raw.categories)) {
+      parsedCategories = raw.categories;
+    } else if (typeof raw.categories === 'string' && raw.categories.trim() !== '') {
+      try { parsedCategories = JSON.parse(raw.categories); } catch (e) {}
+    }
+
+    let parsedTags = ["Gastronomía Local"];
+    if (Array.isArray(raw.tags)) {
+      parsedTags = raw.tags;
+    } else if (typeof raw.tags === 'string' && raw.tags.trim() !== '') {
+      try { parsedTags = JSON.parse(raw.tags); } catch (e) {}
+    }
+
+    const restId = raw.id || `rest-${Date.now()}`;
+    const restName = raw.name || "Restaurante";
+
+    return {
+      id: restId,
+      name: restName,
+      status: raw.status || "Abierto",
+      phone: raw.phone || raw.whatsapp || "",
+      email: raw.email || `${restId}@bulafood.com`,
+      username: raw.username || raw.alias || restId,
+      alias: raw.alias || raw.username || restId,
+      password: raw.password || `${restId}123`,
+      rating: raw.rating ? String(raw.rating) : "5.0",
+      reviewsCount: raw.reviewsCount !== undefined ? Number(raw.reviewsCount) : (raw.reviews_count !== undefined ? Number(raw.reviews_count) : 1),
+      deliveryFee: raw.deliveryFee !== undefined ? Number(raw.deliveryFee) : (raw.delivery_fee !== undefined ? Number(raw.delivery_fee) : 3000),
+      deliveryTime: raw.deliveryTime || raw.delivery_time || "25-35 min",
+      minOrder: raw.minOrder !== undefined ? Number(raw.minOrder) : (raw.min_order !== undefined ? Number(raw.min_order) : 10000),
+      address: raw.address || "Montería",
+      coverImage: raw.coverImage || raw.cover_image || "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+      logo: raw.logo || "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=200&q=80",
+      tags: parsedTags,
+      description: raw.description || "¡Bienvenido a nuestra Vitrina Digital en BulaFood!",
+      categories: parsedCategories,
+      menu: parsedMenu
+    };
+  }
+
+  async function fetchRestaurants() {
+    if (!supabaseClient) {
+      console.warn("Supabase SDK no disponible. Usando catálogo local.");
+      return restaurants;
+    }
+    try {
+      console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase...");
+      const { data, error } = await supabaseClient
+        .from('restaurants')
+        .select('*');
+
+      if (error) {
+        console.warn("Error consultando tabla 'restaurants' en Supabase:", error.message);
+        return restaurants;
+      }
+
+      if (data && Array.isArray(data) && data.length > 0) {
+        const remoteRestaurants = data.map(normalizeRestaurant).filter(Boolean);
+
+        const map = new Map();
+        defaultRestaurants.forEach(r => map.set(r.id, r));
+        restaurants.forEach(r => map.set(r.id, r));
+        remoteRestaurants.forEach(r => map.set(r.id, r));
+
+        restaurants = Array.from(map.values());
+        saveData();
+        console.log(`¡${remoteRestaurants.length} restaurantes oficiales sincronizados desde Supabase!`);
+      }
+      return restaurants;
+    } catch (err) {
+      console.error("Excepción en fetchRestaurants:", err);
+      return restaurants;
+    }
+  }
+
   function loadData() {
     try {
       const saved = localStorage.getItem('bula_food_restaurants');
@@ -178,6 +278,7 @@ window.BulaData = (function() {
       console.warn("Error cargando restaurantes de localStorage", e);
       restaurants = defaultRestaurants;
     }
+    fetchRestaurants();
   }
 
   function saveData() {
@@ -212,10 +313,11 @@ window.BulaData = (function() {
           .maybeSingle();
 
         if (!error && data) {
-          console.log("Autenticación exitosa en Supabase:", data);
-          sessionStorage.setItem(`bula_auth_${data.id || id}`, 'true');
-          sessionStorage.setItem('bula_auth_user', JSON.stringify(data));
-          return { success: true, restaurant: data };
+          const normData = normalizeRestaurant(data);
+          console.log("Autenticación exitosa en Supabase:", normData);
+          sessionStorage.setItem(`bula_auth_${normData.id}`, 'true');
+          sessionStorage.setItem('bula_auth_user', JSON.stringify(normData));
+          return { success: true, restaurant: normData };
         }
       } catch (err) {
         console.warn("Excepción consultando Supabase:", err);
@@ -243,11 +345,11 @@ window.BulaData = (function() {
     return { success: false, message: "Usuario o contraseña de administración incorrectos." };
   }
 
-  // 3. Registro de Nuevo Restaurante (Crear tu Vitrina con Alias y Email)
-  function registerRestaurant(newRestData) {
+  // 3. Inserción Real en Supabase al Crear una Vitrina
+  async function registerRestaurant(newRestData) {
     const name = newRestData.name.trim();
     const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const id = cleanSlug || `rest-${Date.now()}`;
+    const id = cleanSlug ? `${cleanSlug}-${Date.now().toString().slice(-4)}` : `rest-${Date.now()}`;
     
     const email = (newRestData.email || newRestData.username || '').trim();
     const alias = (newRestData.alias || newRestData.username || cleanSlug).trim();
@@ -270,7 +372,7 @@ window.BulaData = (function() {
       coverImage: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
       logo: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=200&q=80",
       tags: ["Nuevo Local", "Gastronomía Local"],
-      description: "¡Bienvenido a nuestro menú digital en BulaFoodboT!",
+      description: "¡Bienvenido a nuestro menú digital en BulaFood!",
       categories: ["Popular", "Platos Fuertes", "Bebidas"],
       menu: [
         {
@@ -286,34 +388,70 @@ window.BulaData = (function() {
       ]
     };
 
-    restaurants.push(newRestaurant);
-    saveData();
-
+    // Inserción Real en la tabla 'restaurants' de Supabase
     if (supabaseClient) {
-      supabaseClient
-        .from('restaurants')
-        .upsert([{
+      try {
+        console.log("Ejecutando inserción real en Supabase para vitrina:", newRestaurant.name);
+        const record = {
           id: newRestaurant.id,
           name: newRestaurant.name,
           phone: newRestaurant.phone,
           email: newRestaurant.email,
           username: newRestaurant.username,
+          alias: newRestaurant.alias,
           password: newRestaurant.password,
           status: newRestaurant.status,
           deliveryFee: newRestaurant.deliveryFee,
-          address: newRestaurant.address
-        }])
-        .then(({ error }) => {
-          if (error) console.warn("Supabase register error:", error.message);
-          else console.log("Nuevo restaurante registrado en Supabase!");
-        });
+          delivery_fee: newRestaurant.deliveryFee,
+          deliveryTime: newRestaurant.deliveryTime,
+          delivery_time: newRestaurant.deliveryTime,
+          address: newRestaurant.address,
+          rating: newRestaurant.rating,
+          reviewsCount: newRestaurant.reviewsCount,
+          reviews_count: newRestaurant.reviewsCount,
+          minOrder: newRestaurant.minOrder,
+          min_order: newRestaurant.minOrder,
+          coverImage: newRestaurant.coverImage,
+          cover_image: newRestaurant.coverImage,
+          logo: newRestaurant.logo,
+          tags: newRestaurant.tags,
+          description: newRestaurant.description,
+          categories: newRestaurant.categories,
+          menu: newRestaurant.menu
+        };
+
+        const { data, error } = await supabaseClient
+          .from('restaurants')
+          .insert([ record ])
+          .select('*');
+
+        if (error) {
+          console.warn("Supabase .insert error, realizando fallback .upsert():", error.message);
+          const { error: upsertErr } = await supabaseClient
+            .from('restaurants')
+            .upsert([ record ]);
+
+          if (upsertErr) {
+            console.error("Error persistiendo restaurante en Supabase:", upsertErr.message);
+          } else {
+            console.log("¡Restaurante guardado exitosamente en Supabase vía upsert!");
+          }
+        } else {
+          console.log("¡Inserción exitosa de nueva vitrina en la tabla 'restaurants' de Supabase!", data);
+        }
+      } catch (err) {
+        console.error("Excepción en inserción Supabase:", err);
+      }
     }
+
+    restaurants.push(newRestaurant);
+    saveData();
 
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
     return newRestaurant;
   }
 
-  function updateRestaurantProfile(id, updatedData) {
+  async function updateRestaurantProfile(id, updatedData) {
     const rest = getRestaurant(id);
     if (!rest) return false;
 
@@ -336,25 +474,35 @@ window.BulaData = (function() {
     saveData();
 
     if (supabaseClient) {
-      supabaseClient
-        .from('restaurants')
-        .upsert({
-          id: rest.id,
-          name: rest.name,
-          phone: rest.phone,
-          username: rest.username,
-          email: rest.email,
-          password: rest.password,
-          status: rest.status,
-          deliveryFee: rest.deliveryFee,
-          deliveryTime: rest.deliveryTime,
-          address: rest.address,
-          description: rest.description
-        })
-        .then(({ error }) => {
-          if (error) console.warn("Upsert Supabase error:", error.message);
-          else console.log("Restaurante sincronizado con Supabase.");
-        });
+      try {
+        await supabaseClient
+          .from('restaurants')
+          .upsert({
+            id: rest.id,
+            name: rest.name,
+            phone: rest.phone,
+            username: rest.username,
+            alias: rest.alias,
+            email: rest.email,
+            password: rest.password,
+            status: rest.status,
+            deliveryFee: rest.deliveryFee,
+            delivery_fee: rest.deliveryFee,
+            deliveryTime: rest.deliveryTime,
+            delivery_time: rest.deliveryTime,
+            address: rest.address,
+            description: rest.description,
+            coverImage: rest.coverImage,
+            cover_image: rest.coverImage,
+            logo: rest.logo,
+            tags: rest.tags,
+            categories: rest.categories,
+            menu: rest.menu
+          });
+        console.log("Restaurante sincronizado con Supabase.");
+      } catch (err) {
+        console.warn("Upsert Supabase error:", err);
+      }
     }
 
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
@@ -362,6 +510,22 @@ window.BulaData = (function() {
   }
 
   // 4. Gestión de Categorías y Platos/Bebidas en Menú
+  function syncMenuToSupabase(rest) {
+    if (!supabaseClient || !rest) return;
+    supabaseClient
+      .from('restaurants')
+      .upsert([{
+        id: rest.id,
+        categories: rest.categories,
+        menu: rest.menu
+      }])
+      .then(({ error }) => {
+        if (error) console.warn("Error actualizando menú en Supabase:", error.message);
+        else console.log("Menú sincronizado exitosamente con Supabase.");
+      })
+      .catch(e => console.warn("Excepción al sincronizar menú con Supabase:", e));
+  }
+
   function addCategory(restaurantId, categoryName) {
     const rest = getRestaurant(restaurantId);
     if (!rest) return false;
@@ -373,6 +537,7 @@ window.BulaData = (function() {
     if (!rest.categories.includes(cleanCat)) {
       rest.categories.push(cleanCat);
       saveData();
+      syncMenuToSupabase(rest);
       window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     }
     return true;
@@ -401,6 +566,7 @@ window.BulaData = (function() {
 
     rest.menu.push(newDish);
     saveData();
+    syncMenuToSupabase(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return newDish;
   }
@@ -426,6 +592,7 @@ window.BulaData = (function() {
     };
 
     saveData();
+    syncMenuToSupabase(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
@@ -436,6 +603,7 @@ window.BulaData = (function() {
 
     rest.menu = rest.menu.filter(d => d.id !== dishId);
     saveData();
+    syncMenuToSupabase(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
@@ -445,6 +613,7 @@ window.BulaData = (function() {
   return {
     get restaurants() { return restaurants; },
     get supabaseClient() { return supabaseClient; },
+    fetchRestaurants,
     getRestaurant,
     authenticateRestaurant,
     registerRestaurant,

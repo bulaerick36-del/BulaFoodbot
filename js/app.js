@@ -3,11 +3,19 @@ window.BulaApp = (function() {
   let activeRestaurantId = "mi-rey";
   let activeCategory = "Todos";
 
-  function init() {
+  async function init() {
     console.log("Inicializando BulaFoodboT App...");
     
-    // Render initial views
+    // Render initial views con cache local
     BulaUI.renderHomeView(BulaData.restaurants);
+
+    // Cargar restaurantes oficiales desde la tabla 'restaurants' de Supabase
+    try {
+      const dbRestaurants = await BulaData.fetchRestaurants();
+      BulaUI.renderHomeView(dbRestaurants);
+    } catch (err) {
+      console.warn("Error inicializando restaurantes de Supabase:", err);
+    }
     
     // Listen for cart state updates
     window.addEventListener('cartUpdated', (e) => {
@@ -36,22 +44,31 @@ window.BulaApp = (function() {
         const query = e.target.value.toLowerCase().trim();
         const filtered = BulaData.restaurants.filter(r => 
           r.name.toLowerCase().includes(query) || 
-          r.tags.some(t => t.toLowerCase().includes(query)) ||
-          r.phone.includes(query)
+          (r.tags && r.tags.some(t => t.toLowerCase().includes(query))) ||
+          (r.phone && r.phone.includes(query))
         );
         BulaUI.renderHomeView(filtered);
       });
     }
   }
 
-  function showHomeView() {
+  async function showHomeView() {
     document.getElementById('home-view').classList.add('active');
     document.getElementById('restaurant-view').classList.remove('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (BulaData && typeof BulaData.fetchRestaurants === 'function') {
+      const dbRestaurants = await BulaData.fetchRestaurants();
+      BulaUI.renderHomeView(dbRestaurants);
+    }
   }
 
-  function openRestaurant(restaurantId) {
-    const restaurant = BulaData.getRestaurant(restaurantId);
+  async function openRestaurant(restaurantId) {
+    let restaurant = BulaData.getRestaurant(restaurantId);
+    if (!restaurant && BulaData && typeof BulaData.fetchRestaurants === 'function') {
+      await BulaData.fetchRestaurants();
+      restaurant = BulaData.getRestaurant(restaurantId);
+    }
     if (!restaurant) return;
 
     activeRestaurantId = restaurantId;
@@ -225,7 +242,7 @@ window.BulaApp = (function() {
     }
   }
 
-  function handleRestaurantRegistration(e) {
+  async function handleRestaurantRegistration(e) {
     if (e) e.preventDefault();
 
     const name = document.getElementById('reg-name').value.trim();
@@ -241,23 +258,40 @@ window.BulaApp = (function() {
       return;
     }
 
-    const newRest = BulaData.registerRestaurant({
-      name,
-      phone,
-      email,
-      alias,
-      username: alias,
-      password,
-      address,
-      deliveryFee
-    });
+    const submitBtn = e && e.target ? e.target.querySelector('button[type="submit"]') : null;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando Vitrina en Supabase...';
+    }
 
-    setAuthenticatedSession(newRest.id, true);
-    closeRegisterModal();
-    BulaUI.showToast("¡Tu Vitrina Digital ha sido creada!");
-    openRestaurant(newRest.id);
-    openAdminModal(newRest.id);
+    try {
+      const newRest = await BulaData.registerRestaurant({
+        name,
+        phone,
+        email,
+        alias,
+        username: alias,
+        password,
+        address,
+        deliveryFee
+      });
+
+      setAuthenticatedSession(newRest.id, true);
+      closeRegisterModal();
+      BulaUI.showToast("¡Tu Vitrina Digital ha sido creada y guardada en Supabase!");
+      openRestaurant(newRest.id);
+      openAdminModal(newRest.id);
+    } catch (err) {
+      console.error("Error al registrar vitrina:", err);
+      alert("Ocurrió un error al guardar la vitrina en la base de datos.");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-magic"></i> ¡Crear Mi Vitrina Gratis!';
+      }
+    }
   }
+
 
   function logoutAdmin() {
     const restId = document.getElementById('admin-rest-id').value || activeRestaurantId;
