@@ -345,11 +345,22 @@ window.BulaData = (function() {
     return { success: false, message: "Usuario o contraseña de administración incorrectos." };
   }
 
-  // 3. Inserción Real en Supabase al Crear una Vitrina
+  function generateUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  // 3. Inserción Real en Supabase al Crear una Vitrina (Compatibilidad con 'id uuid')
   async function registerRestaurant(newRestData) {
     const name = newRestData.name.trim();
     const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const id = cleanSlug ? `${cleanSlug}-${Date.now().toString().slice(-4)}` : `rest-${Date.now()}`;
+    const uuid = generateUUID();
+    const id = uuid; // Usar un UUID válido (36 caracteres) para coincidir con la columna 'id uuid' de Supabase
     
     const email = (newRestData.email || newRestData.username || '').trim();
     const alias = (newRestData.alias || newRestData.username || cleanSlug).trim();
@@ -397,13 +408,13 @@ window.BulaData = (function() {
     }
     saveData();
 
-    // 2. Inserción Real en la tabla 'restaurants' de Supabase con fallbacks de esquema
+    // 2. Inserción Real en la tabla 'restaurants' de Supabase
     if (supabaseClient) {
       try {
-        console.log("Iniciando inserción real en Supabase para vitrina:", newRestaurant.name);
+        console.log("Iniciando inserción real con UUID en Supabase para:", newRestaurant.name, "ID UUID:", newRestaurant.id);
         
-        // Payload 1: Convención estándar PostgreSQL (snake_case)
-        const payloadSnake = {
+        // Payload 1: Campos con UUID explícito e identificadores PostgreSQL
+        const payloadUUID1 = {
           id: newRestaurant.id,
           name: newRestaurant.name,
           phone: newRestaurant.phone,
@@ -427,68 +438,64 @@ window.BulaData = (function() {
 
         let { data, error } = await supabaseClient
           .from('restaurants')
-          .insert([ payloadSnake ])
+          .insert([ payloadUUID1 ])
           .select('*');
 
         if (error) {
-          console.warn("Intento 1 (insert snake_case) rechazado por Supabase:", error.message);
+          console.warn("Intento 1 con UUID falló:", error.message);
           
-          // Payload 2: Convención JavaScript (camelCase)
-          const payloadCamel = {
+          // Payload 2: Solo columnas básicas visibles en el panel de Supabase
+          const payloadUUID2 = {
             id: newRestaurant.id,
             name: newRestaurant.name,
-            phone: newRestaurant.phone,
             email: newRestaurant.email,
+            password: newRestaurant.password,
+            phone: newRestaurant.phone,
             username: newRestaurant.username,
             alias: newRestaurant.alias,
-            password: newRestaurant.password,
             status: newRestaurant.status,
-            deliveryFee: newRestaurant.deliveryFee,
-            deliveryTime: newRestaurant.deliveryTime,
-            address: newRestaurant.address,
-            description: newRestaurant.description,
-            coverImage: newRestaurant.coverImage,
-            logo: newRestaurant.logo,
-            tags: newRestaurant.tags,
-            categories: newRestaurant.categories,
-            menu: newRestaurant.menu
+            address: newRestaurant.address
           };
 
           const res2 = await supabaseClient
             .from('restaurants')
-            .insert([ payloadCamel ])
+            .insert([ payloadUUID2 ])
             .select('*');
 
           if (res2.error) {
-            console.warn("Intento 2 (insert camelCase) rechazado por Supabase:", res2.error.message);
+            console.warn("Intento 2 con UUID explícito falló:", res2.error.message);
 
-            // Payload 3: Columnas esenciales garantizadas en cualquier tabla de restaurantes
-            const payloadBase = {
-              id: newRestaurant.id,
+            // Payload 3: Omitir 'id' para que la base de datos de Supabase genere el UUID automáticamente si gen_random_uuid está activo
+            const payloadNoID = {
               name: newRestaurant.name,
-              phone: newRestaurant.phone,
               email: newRestaurant.email,
-              username: newRestaurant.username,
               password: newRestaurant.password,
+              phone: newRestaurant.phone,
+              username: newRestaurant.username,
+              alias: newRestaurant.alias,
               status: newRestaurant.status,
               address: newRestaurant.address
             };
 
             const res3 = await supabaseClient
               .from('restaurants')
-              .upsert([ payloadBase ])
+              .insert([ payloadNoID ])
               .select('*');
 
             if (res3.error) {
-              console.error("Error persistiendo restaurante en Supabase (verificar RLS o tabla):", res3.error.message);
+              console.error("Error definitivo al guardar en Supabase (Posible bloqueo RLS en tabla restaurants):", res3.error.message);
             } else {
-              console.log("¡Vitrina guardada exitosamente en Supabase (Fallback Base)!", res3.data);
+              console.log("¡Vitrina guardada exitosamente en Supabase (UUID generado por Postgres)!:", res3.data);
+              if (res3.data && res3.data[0] && res3.data[0].id) {
+                newRestaurant.id = res3.data[0].id;
+                saveData();
+              }
             }
           } else {
-            console.log("¡Vitrina insertada exitosamente en Supabase (camelCase)!", res2.data);
+            console.log("¡Vitrina insertada exitosamente en Supabase (UUID explícito)!:", res2.data);
           }
         } else {
-          console.log("¡Inserción exitosa de nueva vitrina en Supabase (snake_case)!", data);
+          console.log("¡Inserción exitosa de nueva vitrina en Supabase con UUID!", data);
         }
       } catch (err) {
         console.error("Excepción en inserción Supabase:", err);
@@ -498,6 +505,7 @@ window.BulaData = (function() {
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
     return newRestaurant;
   }
+
 
 
   async function updateRestaurantProfile(id, updatedData) {
