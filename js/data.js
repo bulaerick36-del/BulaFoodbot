@@ -268,23 +268,40 @@ window.BulaData = (function() {
     let data = null;
     let error = null;
 
-    if (supabaseClient) {
-      try {
-        console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase...");
-        const res = await supabaseClient.from('restaurants').select('*');
-        data = res.data;
-        error = res.error;
-      } catch (err) {
-        error = err;
+    // 1. Intentar backend Vercel Serverless (/api/restaurants) sin restricciones RLS del navegador
+    try {
+      console.log("Consultando /api/restaurants en backend Serverless...");
+      const resApi = await fetch('/api/restaurants');
+      if (resApi.ok) {
+        const json = await resApi.json();
+        if (Array.isArray(json) && json.length > 0) {
+          data = json;
+          console.log(`¡${data.length} restaurantes obtenidos vía Vercel Serverless /api/restaurants!`);
+        }
       }
+    } catch (e) {
+      console.warn("No se pudo conectar a /api/restaurants:", e.message);
     }
 
-    if (error || !data || (Array.isArray(data) && data.length === 0)) {
-      console.log("Ejecutando consulta directa vía REST HTTP PostgREST API...");
-      const direct = await directSupabaseRestFetch('restaurants?select=*', 'GET');
-      if (direct.data && Array.isArray(direct.data) && direct.data.length > 0) {
-        data = direct.data;
-        error = null;
+    // 2. Si no hay respuesta de /api/restaurants, intentar SDK o PostgREST directo
+    if (!data || (Array.isArray(data) && data.length === 0)) {
+      if (supabaseClient) {
+        try {
+          console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase cliente...");
+          const res = await supabaseClient.from('restaurants').select('*');
+          data = res.data;
+          error = res.error;
+        } catch (err) {
+          error = err;
+        }
+      }
+
+      if (error || !data || (Array.isArray(data) && data.length === 0)) {
+        console.log("Ejecutando consulta directa vía REST HTTP PostgREST API...");
+        const direct = await directSupabaseRestFetch('restaurants?select=*', 'GET');
+        if (direct.data && Array.isArray(direct.data) && direct.data.length > 0) {
+          data = direct.data;
+        }
       }
     }
 
@@ -302,6 +319,7 @@ window.BulaData = (function() {
     }
     return restaurants;
   }
+
 
 
   function loadData() {
@@ -453,8 +471,45 @@ window.BulaData = (function() {
     }
     saveData();
 
-    // 2. Inserción Real en la tabla 'restaurants' de Supabase
+    // 2. Inserción Real: Intentar primero vía Serverless Function /api/restaurants (bypassa RLS 100%)
+    try {
+      console.log("Enviando vitrina a /api/restaurants en backend Serverless Vercel...");
+      const payloadNoID = {
+        name: newRestaurant.name,
+        email: newRestaurant.email,
+        password: newRestaurant.password,
+        phone: newRestaurant.phone,
+        username: newRestaurant.username,
+        alias: newRestaurant.alias,
+        status: newRestaurant.status,
+        address: newRestaurant.address
+      };
+
+      const resApi = await fetch('/api/restaurants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([ payloadNoID ])
+      });
+
+      if (resApi.ok) {
+        const json = await resApi.json();
+        console.log("¡Vitrina guardada exitosamente vía Vercel Serverless /api/restaurants!:", json);
+        if (Array.isArray(json) && json[0] && json[0].id) {
+          newRestaurant.id = json[0].id;
+          saveData();
+        }
+        window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
+        return newRestaurant;
+      } else {
+        console.warn("Llamado a /api/restaurants devolvió status:", resApi.status);
+      }
+    } catch (e) {
+      console.warn("Excepción llamando a /api/restaurants:", e.message);
+    }
+
+    // 3. Fallback en el cliente si no hay respuesta del endpoint Serverless
     if (supabaseClient) {
+
       try {
         console.log("Iniciando inserción real con UUID en Supabase para:", newRestaurant.name, "ID UUID:", newRestaurant.id);
         
