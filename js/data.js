@@ -1,57 +1,5 @@
-/* BulaFoodboT - Data Store & Supabase Connection */
+/* BulaFoodboT - Data Store & Neon PostgreSQL Connection */
 window.BulaData = (function() {
-
-  // 1. Configuración e Inicialización de Supabase en Texto Plano Fijo
-  const SUPABASE_URL = "https://vxvyiklzyfmfbrgwqgxv.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_mnfzndBWIgcp3yGRUMh9ng_xOrDNrPn";
-  
-  let supabaseClient = null;
-  if (typeof window.supabase !== 'undefined' && window.supabase.createClient) {
-    try {
-      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        global: {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
-          }
-        },
-        auth: { persistSession: false, autoRefreshToken: false }
-      });
-      console.log("Supabase Client inicializado con cabeceras explícitas de API Key:", SUPABASE_URL);
-    } catch (err) {
-      console.warn("Error al inicializar cliente de Supabase:", err);
-    }
-  } else {
-    console.warn("Supabase SDK no cargado en window. Usando datos locales de demostración.");
-  }
-
-  // Helper de solicitud HTTP REST directa sin bloqueos del SDK
-  async function directSupabaseRestFetch(endpoint, method = 'GET', body = null) {
-    try {
-      const headers = {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': method === 'POST' ? 'return=representation' : 'count=exact'
-      };
-      const opts = { method, headers };
-      if (body) opts.body = JSON.stringify(body);
-      const response = await fetch(`${SUPABASE_URL}/rest/v1/${endpoint}`, opts);
-      if (response.ok) {
-        const json = await response.json();
-        return { data: json, error: null };
-      } else {
-        const text = await response.text();
-        return { data: null, error: { message: `HTTP ${response.status}: ${text}` } };
-      }
-    } catch (e) {
-      return { data: null, error: { message: e.message } };
-    }
-  }
-
-
-
-
 
   const defaultRestaurants = [
     {
@@ -94,52 +42,6 @@ window.BulaData = (function() {
           image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80",
           popular: true,
           badge: "Más Vendido"
-        },
-        {
-          id: "mr-3",
-          name: "Mocharra Frita con Arroz de Coco",
-          category: "Platos Fuertes",
-          price: 32000,
-          description: "Mojarra dorada y crujiente (500g), acompañada de arroz de coco artesanal, patacón gigante y ensalada agridulce.",
-          image: "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?auto=format&fit=crop&w=500&q=80",
-          popular: false
-        },
-        {
-          id: "mr-4",
-          name: "Empanaditas de Carne y Papa (6 uds)",
-          category: "Entradas",
-          price: 10500,
-          description: "Empanaditas de masa de maíz crujiente rellenas de carne desmechada y papa, servidas con suero costeño y pico de gallo.",
-          image: "https://images.unsplash.com/photo-1626700051175-6818013e1d4f?auto=format&fit=crop&w=500&q=80",
-          popular: false
-        },
-        {
-          id: "mr-5",
-          name: "Jugo Natural de Corozo Helado",
-          category: "Bebidas",
-          price: 6500,
-          description: "Refrescante y tradicional jugo de corozo costeño recién preparado, bien helado.",
-          image: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=500&q=80",
-          popular: true,
-          badge: "Refrescante"
-        },
-        {
-          id: "mr-6",
-          name: "Limonada de Coco Artesanal",
-          category: "Bebidas",
-          price: 7500,
-          description: "Crema de coco natural batida con jugo de limón fresco y hielo frappé.",
-          image: "https://images.unsplash.com/photo-1546171753-97d7676e4174?auto=format&fit=crop&w=500&q=80",
-          popular: false
-        },
-        {
-          id: "mr-7",
-          name: "Cocada de Arequipe y Queso",
-          category: "Postres",
-          price: 5500,
-          description: "Cocada artesanal horneada servida tibia con topping de arequipe y queso costeño rallado.",
-          image: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=500&q=80",
-          popular: false
         }
       ]
     },
@@ -162,37 +64,6 @@ window.BulaData = (function() {
       logo: "https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=200&q=80",
       tags: ["Mariscos", "Arroces", "Jugos"],
       categories: ["Popular", "Platos Fuertes", "Bebidas"],
-      menu: [
-        {
-          id: "sc-1",
-          name: "Arroz de Mariscos del Caribe",
-          category: "Platos Fuertes",
-          price: 34000,
-          description: "Arroz con trozos de camarón, calamar y pulpo salteados al ajillo con vino blanco.",
-          image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=500&q=80",
-          popular: true
-        }
-      ]
-    },
-    {
-      id: "asados-rancho",
-      name: "Asados El Rancho",
-      status: "Cerrado",
-      phone: "+573025554433",
-      username: "rancho_asados",
-      alias: "rancho_asados",
-      email: "rancho@bulafood.com",
-      password: "rancho123",
-      rating: "4.8",
-      reviewsCount: 210,
-      deliveryFee: 3000,
-      deliveryTime: "20-30 min",
-      minOrder: 10000,
-      address: "Av. Principal # 45-12, Montería",
-      coverImage: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80",
-      logo: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=200&q=80",
-      tags: ["Parrilla", "Carnes", "Mazorcadas"],
-      categories: ["Carnes", "Acompañamientos"],
       menu: []
     }
   ];
@@ -265,62 +136,31 @@ window.BulaData = (function() {
   }
 
   async function fetchRestaurants() {
-    let data = null;
-    let error = null;
-
-    // 1. Intentar backend Vercel Serverless (/api/restaurants) sin restricciones RLS del navegador
     try {
-      console.log("Consultando /api/restaurants en backend Serverless...");
+      console.log("Consultando /api/restaurants en Neon PostgreSQL...");
       const resApi = await fetch('/api/restaurants');
       if (resApi.ok) {
-        const json = await resApi.json();
-        if (Array.isArray(json) && json.length > 0) {
-          data = json;
-          console.log(`¡${data.length} restaurantes obtenidos vía Vercel Serverless /api/restaurants!`);
+        const data = await resApi.json();
+        if (Array.isArray(data) && data.length > 0) {
+          const remoteRestaurants = data.map(normalizeRestaurant).filter(Boolean);
+
+          const map = new Map();
+          defaultRestaurants.forEach(r => map.set(r.id, r));
+          restaurants.forEach(r => map.set(r.id, r));
+          remoteRestaurants.forEach(r => map.set(r.id, r));
+
+          restaurants = Array.from(map.values());
+          saveData();
+          console.log(`¡${remoteRestaurants.length} restaurantes sincronizados desde Neon PostgreSQL!`);
         }
+      } else {
+        console.warn("Respuesta /api/restaurants HTTP status:", resApi.status);
       }
     } catch (e) {
-      console.warn("No se pudo conectar a /api/restaurants:", e.message);
-    }
-
-    // 2. Si no hay respuesta de /api/restaurants, intentar SDK o PostgREST directo
-    if (!data || (Array.isArray(data) && data.length === 0)) {
-      if (supabaseClient) {
-        try {
-          console.log("Cargando restaurantes desde la tabla 'restaurants' de Supabase cliente...");
-          const res = await supabaseClient.from('restaurants').select('*');
-          data = res.data;
-          error = res.error;
-        } catch (err) {
-          error = err;
-        }
-      }
-
-      if (error || !data || (Array.isArray(data) && data.length === 0)) {
-        console.log("Ejecutando consulta directa vía REST HTTP PostgREST API...");
-        const direct = await directSupabaseRestFetch('restaurants?select=*', 'GET');
-        if (direct.data && Array.isArray(direct.data) && direct.data.length > 0) {
-          data = direct.data;
-        }
-      }
-    }
-
-    if (data && Array.isArray(data) && data.length > 0) {
-      const remoteRestaurants = data.map(normalizeRestaurant).filter(Boolean);
-
-      const map = new Map();
-      defaultRestaurants.forEach(r => map.set(r.id, r));
-      restaurants.forEach(r => map.set(r.id, r));
-      remoteRestaurants.forEach(r => map.set(r.id, r));
-
-      restaurants = Array.from(map.values());
-      saveData();
-      console.log(`¡${remoteRestaurants.length} restaurantes oficiales sincronizados desde Supabase!`);
+      console.warn("Excepción al consultar /api/restaurants:", e.message);
     }
     return restaurants;
   }
-
-
 
   function loadData() {
     try {
@@ -356,35 +196,12 @@ window.BulaData = (function() {
     return restaurants.find(r => r.id === id);
   }
 
-  // 2. Autenticación Asíncrona (Supabase + Respaldo Local)
   async function authenticateRestaurant(id, inputUser, inputPassword) {
     const cleanUser = (inputUser || '').toLowerCase().trim();
     const cleanPass = (inputPassword || '').trim();
 
     if (!cleanUser || !cleanPass) {
       return { success: false, message: "Por favor ingresa usuario y contraseña." };
-    }
-
-    if (supabaseClient) {
-      try {
-        console.log("Consultando Supabase para validar credenciales de:", cleanUser);
-        const { data, error } = await supabaseClient
-          .from('restaurants')
-          .select('*')
-          .or(`username.eq.${cleanUser},email.eq.${cleanUser}`)
-          .eq('password', cleanPass)
-          .maybeSingle();
-
-        if (!error && data) {
-          const normData = normalizeRestaurant(data);
-          console.log("Autenticación exitosa en Supabase:", normData);
-          sessionStorage.setItem(`bula_auth_${normData.id}`, 'true');
-          sessionStorage.setItem('bula_auth_user', JSON.stringify(normData));
-          return { success: true, restaurant: normData };
-        }
-      } catch (err) {
-        console.warn("Excepción consultando Supabase:", err);
-      }
     }
 
     const matchedRest = restaurants.find(r => 
@@ -418,12 +235,10 @@ window.BulaData = (function() {
     });
   }
 
-  // 3. Inserción Real en Supabase al Crear una Vitrina (Compatibilidad con 'id uuid')
   async function registerRestaurant(newRestData) {
     const name = newRestData.name.trim();
     const cleanSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-    const uuid = generateUUID();
-    const id = uuid; // Usar un UUID válido (36 caracteres) para coincidir con la columna 'id uuid' de Supabase
+    const id = generateUUID();
     
     const email = (newRestData.email || newRestData.username || '').trim();
     const alias = (newRestData.alias || newRestData.username || cleanSlug).trim();
@@ -462,7 +277,6 @@ window.BulaData = (function() {
       ]
     };
 
-    // 1. Guardar de forma inmediata e indestructible en memoria y localStorage
     const existingIndex = restaurants.findIndex(r => r.id === newRestaurant.id);
     if (existingIndex >= 0) {
       restaurants[existingIndex] = newRestaurant;
@@ -471,153 +285,29 @@ window.BulaData = (function() {
     }
     saveData();
 
-    // 2. Inserción Real: Intentar primero vía Serverless Function /api/restaurants (bypassa RLS 100%)
     try {
-      console.log("Enviando vitrina a /api/restaurants en backend Serverless Vercel...");
-      const payloadNoID = {
-        name: newRestaurant.name,
-        email: newRestaurant.email,
-        password: newRestaurant.password,
-        phone: newRestaurant.phone,
-        username: newRestaurant.username,
-        alias: newRestaurant.alias,
-        status: newRestaurant.status,
-        address: newRestaurant.address
-      };
-
+      console.log("Enviando vitrina a /api/restaurants (Neon PostgreSQL)...");
       const resApi = await fetch('/api/restaurants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify([ payloadNoID ])
+        body: JSON.stringify(newRestaurant)
       });
 
       if (resApi.ok) {
         const json = await resApi.json();
-        console.log("¡Vitrina guardada exitosamente vía Vercel Serverless /api/restaurants!:", json);
-        if (Array.isArray(json) && json[0] && json[0].id) {
-          newRestaurant.id = json[0].id;
+        console.log("¡Vitrina guardada exitosamente en Neon PostgreSQL via /api/restaurants!:", json);
+        if (json && json.id) {
+          newRestaurant.id = json.id;
           saveData();
         }
-        window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
-        return newRestaurant;
-      } else {
-        console.warn("Llamado a /api/restaurants devolvió status:", resApi.status);
       }
     } catch (e) {
-      console.warn("Excepción llamando a /api/restaurants:", e.message);
-    }
-
-    // 3. Fallback en el cliente si no hay respuesta del endpoint Serverless
-    if (supabaseClient) {
-
-      try {
-        console.log("Iniciando inserción real con UUID en Supabase para:", newRestaurant.name, "ID UUID:", newRestaurant.id);
-        
-        // Payload 1: Campos con UUID explícito e identificadores PostgreSQL
-        const payloadUUID1 = {
-          id: newRestaurant.id,
-          name: newRestaurant.name,
-          phone: newRestaurant.phone,
-          email: newRestaurant.email,
-          username: newRestaurant.username,
-          alias: newRestaurant.alias,
-          password: newRestaurant.password,
-          status: newRestaurant.status,
-          delivery_fee: newRestaurant.deliveryFee,
-          delivery_time: newRestaurant.deliveryTime,
-          address: newRestaurant.address,
-          description: newRestaurant.description,
-          rating: newRestaurant.rating,
-          reviews_count: newRestaurant.reviewsCount,
-          cover_image: newRestaurant.coverImage,
-          logo: newRestaurant.logo,
-          tags: newRestaurant.tags,
-          categories: newRestaurant.categories,
-          menu: newRestaurant.menu
-        };
-
-        let { data, error } = await supabaseClient
-          .from('restaurants')
-          .insert([ payloadUUID1 ])
-          .select('*');
-
-        if (error) {
-          console.warn("Intento 1 con UUID falló:", error.message);
-          
-          // Payload 2: Solo columnas básicas visibles en el panel de Supabase
-          const payloadUUID2 = {
-            id: newRestaurant.id,
-            name: newRestaurant.name,
-            email: newRestaurant.email,
-            password: newRestaurant.password,
-            phone: newRestaurant.phone,
-            username: newRestaurant.username,
-            alias: newRestaurant.alias,
-            status: newRestaurant.status,
-            address: newRestaurant.address
-          };
-
-          const res2 = await supabaseClient
-            .from('restaurants')
-            .insert([ payloadUUID2 ])
-            .select('*');
-
-          if (res2.error) {
-            console.warn("Intento 2 con UUID explícito falló:", res2.error.message);
-
-            // Payload 3: Omitir 'id' para que la base de datos de Supabase genere el UUID automáticamente si gen_random_uuid está activo
-            const payloadNoID = {
-              name: newRestaurant.name,
-              email: newRestaurant.email,
-              password: newRestaurant.password,
-              phone: newRestaurant.phone,
-              username: newRestaurant.username,
-              alias: newRestaurant.alias,
-              status: newRestaurant.status,
-              address: newRestaurant.address
-            };
-
-            const res3 = await supabaseClient
-              .from('restaurants')
-              .insert([ payloadNoID ])
-              .select('*');
-
-            if (res3.error) {
-              console.warn("Intento SDK 3 falló. Ejecutando inserción directa mediante HTTP REST PostgREST API...");
-              const directPost = await directSupabaseRestFetch('restaurants', 'POST', [ payloadNoID ]);
-              if (directPost.data) {
-                console.log("¡Vitrina insertada exitosamente en Supabase mediante HTTP REST directo!", directPost.data);
-                if (directPost.data[0] && directPost.data[0].id) {
-                  newRestaurant.id = directPost.data[0].id;
-                  saveData();
-                }
-              } else {
-                console.error("Error definitivo al guardar en Supabase:", directPost.error ? directPost.error.message : res3.error.message);
-              }
-            } else {
-              console.log("¡Vitrina guardada exitosamente en Supabase (UUID generado por Postgres)!:", res3.data);
-              if (res3.data && res3.data[0] && res3.data[0].id) {
-                newRestaurant.id = res3.data[0].id;
-                saveData();
-              }
-            }
-
-          } else {
-            console.log("¡Vitrina insertada exitosamente en Supabase (UUID explícito)!:", res2.data);
-          }
-        } else {
-          console.log("¡Inserción exitosa de nueva vitrina en Supabase con UUID!", data);
-        }
-      } catch (err) {
-        console.error("Excepción en inserción Supabase:", err);
-      }
+      console.warn("Excepción al guardar en /api/restaurants:", e.message);
     }
 
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: newRestaurant }));
     return newRestaurant;
   }
-
-
 
   async function updateRestaurantProfile(id, updatedData) {
     const rest = getRestaurant(id);
@@ -627,9 +317,7 @@ window.BulaData = (function() {
       rest.username = updatedData.username.trim();
       rest.alias = updatedData.username.trim();
     }
-    if (updatedData.email) {
-      rest.email = updatedData.email.trim();
-    }
+    if (updatedData.email) rest.email = updatedData.email.trim();
     if (updatedData.password) rest.password = updatedData.password.trim();
     if (updatedData.name) rest.name = updatedData.name.trim();
     if (updatedData.phone) rest.phone = updatedData.phone.trim();
@@ -641,57 +329,30 @@ window.BulaData = (function() {
 
     saveData();
 
-    if (supabaseClient) {
-      try {
-        await supabaseClient
-          .from('restaurants')
-          .upsert({
-            id: rest.id,
-            name: rest.name,
-            phone: rest.phone,
-            username: rest.username,
-            alias: rest.alias,
-            email: rest.email,
-            password: rest.password,
-            status: rest.status,
-            deliveryFee: rest.deliveryFee,
-            delivery_fee: rest.deliveryFee,
-            deliveryTime: rest.deliveryTime,
-            delivery_time: rest.deliveryTime,
-            address: rest.address,
-            description: rest.description,
-            coverImage: rest.coverImage,
-            cover_image: rest.coverImage,
-            logo: rest.logo,
-            tags: rest.tags,
-            categories: rest.categories,
-            menu: rest.menu
-          });
-        console.log("Restaurante sincronizado con Supabase.");
-      } catch (err) {
-        console.warn("Upsert Supabase error:", err);
-      }
+    try {
+      await fetch('/api/restaurants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rest)
+      });
+      console.log("Perfil de restaurante sincronizado con Neon PostgreSQL via /api/restaurants.");
+    } catch (e) {
+      console.warn("Error al sincronizar perfil con /api/restaurants:", e);
     }
 
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
 
-  // 4. Gestión de Categorías y Platos/Bebidas en Menú
-  function syncMenuToSupabase(rest) {
-    if (!supabaseClient || !rest) return;
-    supabaseClient
-      .from('restaurants')
-      .upsert([{
-        id: rest.id,
-        categories: rest.categories,
-        menu: rest.menu
-      }])
-      .then(({ error }) => {
-        if (error) console.warn("Error actualizando menú en Supabase:", error.message);
-        else console.log("Menú sincronizado exitosamente con Supabase.");
-      })
-      .catch(e => console.warn("Excepción al sincronizar menú con Supabase:", e));
+  function syncMenuToBackend(rest) {
+    if (!rest) return;
+    fetch('/api/restaurants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rest)
+    }).then(res => {
+      if (res.ok) console.log("Menú sincronizado exitosamente con Neon PostgreSQL via /api/restaurants.");
+    }).catch(e => console.warn("Error al sincronizar menú:", e));
   }
 
   function addCategory(restaurantId, categoryName) {
@@ -705,7 +366,7 @@ window.BulaData = (function() {
     if (!rest.categories.includes(cleanCat)) {
       rest.categories.push(cleanCat);
       saveData();
-      syncMenuToSupabase(rest);
+      syncMenuToBackend(rest);
       window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     }
     return true;
@@ -734,7 +395,7 @@ window.BulaData = (function() {
 
     rest.menu.push(newDish);
     saveData();
-    syncMenuToSupabase(rest);
+    syncMenuToBackend(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return newDish;
   }
@@ -760,7 +421,7 @@ window.BulaData = (function() {
     };
 
     saveData();
-    syncMenuToSupabase(rest);
+    syncMenuToBackend(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
@@ -771,7 +432,7 @@ window.BulaData = (function() {
 
     rest.menu = rest.menu.filter(d => d.id !== dishId);
     saveData();
-    syncMenuToSupabase(rest);
+    syncMenuToBackend(rest);
     window.dispatchEvent(new CustomEvent('restaurantUpdated', { detail: rest }));
     return true;
   }
@@ -780,7 +441,6 @@ window.BulaData = (function() {
 
   return {
     get restaurants() { return restaurants; },
-    get supabaseClient() { return supabaseClient; },
     fetchRestaurants,
     getRestaurant,
     authenticateRestaurant,
